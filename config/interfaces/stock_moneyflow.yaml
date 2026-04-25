@@ -1,0 +1,130 @@
+# stock_moneyflow interfaces
+# 8 interfaces in this category
+---
+name: moneyflow
+table: tushare_moneyflow
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: B
+---
+name: moneyflow_cnt_ths
+table: tushare_moneyflow_cnt_ths
+enabled: false  # empty sample: Tushare returns no data
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: moneyflow_dc
+table: tushare_moneyflow_dc
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20230911'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: moneyflow_hsgt
+table: tushare_moneyflow_hsgt
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: B
+---
+name: moneyflow_ind_dc
+table: tushare_moneyflow_ind_dc
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: moneyflow_ind_ths
+table: tushare_moneyflow_ind_ths
+enabled: false  # empty sample: Tushare returns no data
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: moneyflow_mkt_dc
+table: tushare_moneyflow_mkt_dc
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: moneyflow_ths
+table: tushare_moneyflow_ths
+enabled: false  # empty sample: Tushare returns no data
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: offset_paging
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C

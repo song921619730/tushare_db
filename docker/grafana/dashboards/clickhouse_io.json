@@ -1,0 +1,314 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total Parts Count",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT count() AS parts FROM system.parts WHERE active AND database = 'tushare'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5000 },
+              { "color": "red", "value": 10000 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Total Data Size",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT formatReadableSize(sum(bytes_on_disk)) AS total_size FROM system.parts WHERE active AND database = 'tushare'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 }
+    },
+    {
+      "id": 3,
+      "title": "Total Rows",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT formatReadableQuantity(sum(rows)) AS total_rows FROM system.parts WHERE active AND database = 'tushare'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 }
+    },
+    {
+      "id": 4,
+      "title": "Active Merges",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT count() AS active_merges FROM system.merges WHERE database = 'tushare'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 }
+    },
+    {
+      "id": 5,
+      "title": "Disk Usage",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT formatReadableSize(total_space - free_space) AS used, formatReadableSize(total_space) AS total, formatReadableSize(free_space) AS free FROM system.disks WHERE name = 'default'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 0 }
+    },
+    {
+      "id": 6,
+      "title": "Parts per Table",
+      "type": "bargauge",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT table, count() AS parts FROM system.parts WHERE active AND database = 'tushare' GROUP BY table ORDER BY parts DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 }
+    },
+    {
+      "id": 7,
+      "title": "Current Merges",
+      "type": "table",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT database, table, elapsed, progress, result_rows_count FROM system.merges WHERE database = 'tushare' ORDER BY elapsed DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": { "type": "auto" }
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 }
+    },
+    {
+      "id": 8,
+      "title": "Data Size per Table",
+      "type": "bargauge",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT table, formatReadableSize(sum(bytes_on_disk)) AS size FROM system.parts WHERE active AND database = 'tushare' GROUP BY table ORDER BY sum(bytes_on_disk) DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 }
+    },
+    {
+      "id": 9,
+      "title": "Rows per Table",
+      "type": "bargauge",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT table, formatReadableQuantity(sum(rows)) AS rows FROM system.parts WHERE active AND database = 'tushare' GROUP BY table ORDER BY sum(rows) DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 }
+    },
+    {
+      "id": 10,
+      "title": "Part Count Trend (Last 24h)",
+      "type": "timeseries",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "time_series",
+          "rawSql": "SELECT now() - INTERVAL (number * 5) MINUTE AS time, (SELECT count() FROM system.parts WHERE active AND database = 'tushare') AS parts FROM system.numbers LIMIT 288",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 }
+    },
+    {
+      "id": 11,
+      "title": "Async Insert Queue",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT value FROM system.asynchronous_metrics WHERE metric = 'AsyncInsertCount'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 20 }
+    },
+    {
+      "id": 12,
+      "title": "ClickHouse Uptime",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT uptime() AS uptime_seconds",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "s"
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 16, "y": 20 }
+    },
+    {
+      "id": 13,
+      "title": "Memory Usage",
+      "type": "stat",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT formatReadableSize(value) AS memory FROM system.asynchronous_metrics WHERE metric = 'MemoryToCacheMaxBytes'",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 4, "w": 4, "x": 20, "y": 20 }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["tushare", "clickhouse"],
+  "templating": {
+    "list": []
+  },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "ClickHouse I/O",
+  "uid": "clickhouse_io",
+  "version": 1
+}

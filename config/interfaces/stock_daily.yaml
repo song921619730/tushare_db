@@ -1,0 +1,245 @@
+# stock_daily interfaces
+# 14 interfaces in this category
+---
+name: adj_factor
+table: tushare_adj_factor
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+dedupe_key: trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: bak_daily
+table: tushare_bak_daily
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: daily
+table: tushare_stock_daily
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+dedupe_key: trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: daily_basic
+table: tushare_daily_basic
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+dedupe_key: trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: B
+---
+name: ggt_daily
+table: tushare_ggt_daily
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: ggt_monthly
+table: tushare_ggt_monthly
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: ggt_top10
+table: tushare_ggt_top10
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: hsgt_top10
+table: tushare_hsgt_top10
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: monthly
+table: tushare_stock_monthly
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+dedupe_key: trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: stk_limit
+table: tushare_stk_limit
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: B
+---
+name: stk_week_month_adj
+table: tushare_stk_week_month_adj
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: stk_weekly_monthly
+table: tushare_stk_weekly_monthly
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: suspend_d
+table: tushare_suspend_d
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: B
+---
+name: weekly
+table: tushare_stock_weekly
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+dedupe_key: trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A

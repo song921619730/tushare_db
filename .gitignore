@@ -1,0 +1,42 @@
+# 凭证 / 密钥（**绝不能提交**）
+.env
+.env.*
+!.env.example
+*.token
+*.key
+*.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+*.cover
+
+# uv / poetry
+uv.lock.bak
+
+# 数据 / 日志（运行产物，体积大）
+data/logs/
+data/samples/
+clickhouse_data/
+grafana_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code 本地状态
+.claude/settings.local.json

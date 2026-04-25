@@ -1,0 +1,185 @@
+# futures interfaces
+# 11 interfaces in this category
+---
+name: ft_limit
+table: tushare_ft_limit
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_basic
+table: tushare_fut_basic
+enabled: true
+priority: P2
+mode: full
+freq_bucket: normal
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: fut_daily
+table: tushare_fut_daily
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_holding
+table: tushare_fut_holding
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_index_daily
+table: tushare_fut_index_daily
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_mapping
+table: tushare_fut_mapping
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_settle
+table: tushare_fut_settle
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_trade_cal
+table: tushare_fut_trade_cal
+enabled: true
+priority: P2
+mode: full
+freq_bucket: normal
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(trade_date)
+order_by: exchange, cal_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: fut_weekly_detail
+table: tushare_fut_weekly_detail
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_weekly_monthly
+table: tushare_fut_weekly_monthly
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+name: fut_wsr
+table: tushare_fut_wsr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A

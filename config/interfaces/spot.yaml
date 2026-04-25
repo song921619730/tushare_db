@@ -1,0 +1,34 @@
+# spot interfaces
+# 2 interfaces in this category
+---
+name: sge_basic
+table: tushare_sge_basic
+enabled: true
+priority: P3
+mode: full
+freq_bucket: normal
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: sge_daily
+table: tushare_sge_daily
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A

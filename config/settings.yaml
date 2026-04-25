@@ -1,0 +1,38 @@
+# Global settings for tushare-db
+# Overrides via environment variables take precedence
+
+app:
+  timezone: "Asia/Shanghai"
+  default_start_date: "20200101"
+  log_level: "INFO"
+  log_dir: "data/logs"
+  sample_dir: "data/samples"
+
+clickhouse:
+  host: "${CH_HOST:-localhost}"
+  http_port: "${CH_HTTP_PORT:-8123}"
+  native_port: "${CH_NATIVE_PORT:-9000}"
+  user: "${CH_USER:-pipeline}"
+  password: "${CH_PIPELINE_PASSWORD}"
+  database: "tushare"
+  meta_database: "_meta"
+
+tushare:
+  token: "${TUSHARE_TOKEN}"
+  timeout: 10
+  retry_max: 3
+  retry_backoff_min: 1
+  retry_backoff_max: 30
+
+rate_limiter:
+  normal_rpm: 475        # 95% of 500
+  special_rpm: 285       # 95% of 300
+  normal_workers: 12
+  special_workers: 6
+  cooldown_429_sec: 60
+
+scheduler:
+  timezone: "Asia/Shanghai"
+  misfire_grace_time: 3600
+  coalesce: true
+  retry_limit: 2

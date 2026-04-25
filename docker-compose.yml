@@ -1,0 +1,79 @@
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    restart: unless-stopped
+    ports: ["8123:8123", "9000:9000"]
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./docker/clickhouse/config.xml:/etc/clickhouse-server/config.d/00-custom.xml:ro
+      - ./docker/clickhouse/users.xml:/etc/clickhouse-server/users.d/00-users.xml:ro
+      - ./docker/clickhouse/init:/docker-entrypoint-initdb.d:ro
+    environment:
+      CH_PIPELINE_PASSWORD: ${CH_PIPELINE_PASSWORD}
+      CH_AI_READER_PASSWORD: ${CH_AI_READER_PASSWORD}
+      CH_GRAFANA_PASSWORD: ${CH_GRAFANA_PASSWORD}
+    deploy:
+      resources:
+        limits: {memory: 12G}
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 -O /dev/null http://localhost:8123/ping || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  pipeline-scheduler:
+    build: ./docker/pipeline
+    restart: unless-stopped
+    depends_on:
+      clickhouse: {condition: service_healthy}
+    volumes:
+      - ./config:/app/config:ro
+      - ./data/logs:/app/data/logs
+      - ./data/samples:/app/data/samples
+    environment:
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN}
+      CH_HOST: clickhouse
+      CH_PIPELINE_PASSWORD: ${CH_PIPELINE_PASSWORD}
+    command: ["tushare-db", "scheduler-run"]
+
+  pipeline-mcp:
+    build: ./docker/pipeline
+    restart: unless-stopped
+    ports: ["7800:7800"]
+    depends_on:
+      clickhouse: {condition: service_healthy}
+    volumes:
+      - ./config:/app/config:ro
+      - ./data/logs:/app/data/logs
+    environment:
+      TUSHARE_TOKEN: ${TUSHARE_TOKEN}
+      CH_HOST: clickhouse
+      CH_PIPELINE_PASSWORD: ${CH_PIPELINE_PASSWORD}
+      CH_AI_READER_PASSWORD: ${CH_AI_READER_PASSWORD}
+    command: ["tushare-db", "mcp-serve", "--transport", "sse", "--host", "0.0.0.0", "--port", "7800"]
+
+  grafana:
+    image: grafana/grafana:11.0.0
+    restart: unless-stopped
+    ports: ["3000:3000"]
+    depends_on:
+      clickhouse: {condition: service_healthy}
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./docker/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    environment:
+      GF_INSTALL_PLUGINS: grafana-clickhouse-datasource
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: "Viewer"
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    ports: ["3001:80"]
+    depends_on:
+      clickhouse: {condition: service_healthy}
+
+volumes:
+  clickhouse_data:
+  grafana_data:

@@ -1,0 +1,376 @@
+# macro interfaces
+# 22 interfaces in this category
+---
+name: bo_cinema
+table: tushare_bo_cinema
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: bo_daily
+table: tushare_bo_daily
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: bo_monthly
+table: tushare_bo_monthly
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: bo_weekly
+table: tushare_bo_weekly
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: cn_cpi
+table: tushare_cn_cpi
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: cn_gdp
+table: tushare_cn_gdp
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: cn_m
+table: tushare_cn_m
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: cn_pmi
+table: tushare_cn_pmi
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: cn_ppi
+table: tushare_cn_ppi
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: gz_index
+table: tushare_gz_index
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: hibor
+table: tushare_hibor
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: libor
+table: tushare_libor
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: sf_month
+table: tushare_sf_month
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: shibor
+table: tushare_shibor
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: shibor_lpr
+table: tushare_shibor_lpr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: shibor_quote
+table: tushare_shibor_quote
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: us_tbr
+table: tushare_us_tbr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: us_tltr
+table: tushare_us_tltr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: us_trltr
+table: tushare_us_trltr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: us_trycr
+table: tushare_us_trycr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: us_tycr
+table: tushare_us_tycr
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: wz_index
+table: tushare_wz_index
+enabled: true
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D

@@ -1,0 +1,1055 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tushare DB Dashboard</title>
+<script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+<script src="https://unpkg.com/echarts@5/dist/echarts.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0e14;
+    --panel: #10151c;
+    --panel-soft: #151b23;
+    --fg: #e8e6df;
+    --mute: #6b7280;
+    --line: #1c2430;
+    --accent: #4ad8e6;
+    --pos: #4ad88a;
+    --neg: #ff6b6b;
+    --warn: #ffcf4a;
+    --font-body: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', 'IBM Plex Mono', monospace;
+    --font-display: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+    --radius: 6px;
+    --radius-sm: 3px;
+    --pad: 18px;
+    --pad-lg: 28px;
+    --gap: 14px;
+  }
+  html, body { width: 100%; height: 100%; }
+  body {
+    font-family: var(--font-body);
+    background: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  #app { width: 100vw; height: 100vh; }
+  button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+  input, select, textarea { font: inherit; color: inherit; }
+  ::selection { background: var(--accent); color: var(--bg); }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--mute); }
+  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(1.3)} }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+const { createApp, ref, reactive, computed, onMounted, onUnmounted, watch, nextTick } = Vue;
+
+// ─── ClickHouse Query Helper ───────────────────────────────────────
+const CH_DEFAULTS = { host: 'localhost', port: 8123, user: 'ai_reader', password: '', database: 'tushare', useProxy: true };
+
+function loadCHConfig() {
+  // URL params override localStorage (B23: auto-inject connection)
+  const params = new URLSearchParams(location.search);
+  const urlConfig = {};
+  if (params.get('ch_host')) urlConfig.host = params.get('ch_host');
+  if (params.get('ch_port')) urlConfig.port = parseInt(params.get('ch_port'));
+  if (params.get('ch_user')) urlConfig.user = params.get('ch_user');
+  if (params.get('ch_password')) {
+    urlConfig.password = params.get('ch_password');
+    localStorage.setItem('ch_password_injected', params.get('ch_password'));
+    // Clear password from URL to prevent referer leak
+    history.replaceState(null, '', location.pathname);
+  }
+  if (params.get('ch_database')) urlConfig.database = params.get('ch_database');
+  if (params.get('ch_proxy') !== null) urlConfig.useProxy = params.get('ch_proxy') !== 'false';
+
+  try {
+    const saved = localStorage.getItem('tushare_ch_config');
+    if (saved) {
+      const base = { ...CH_DEFAULTS, ...JSON.parse(saved) };
+      return { ...base, ...urlConfig };
+    }
+  } catch(e) {}
+  return { ...CH_DEFAULTS, ...urlConfig };
+}
+
+async function chQuery(sql, config) {
+  const cfg = config || loadCHConfig();
+
+  // Proxy mode: route through nginx /api/ch/ (no CORS needed)
+  if (cfg.useProxy) {
+    const params = new URLSearchParams({
+      user: cfg.user, password: cfg.password, database: cfg.database,
+      default_format: 'JSON'
+    });
+    const resp = await fetch(`/api/ch/?${params}`, { method: 'POST', body: sql });
+    if (!resp.ok) {
+      const text = await resp.text();
+      throw new Error(`ClickHouse ${resp.status}: ${text.slice(0, 200)}`);
+    }
+    return resp.json();
+  }
+
+  // Direct mode: connect to ClickHouse HTTP port directly
+  const params = new URLSearchParams({
+    user: cfg.user, password: cfg.password, database: cfg.database,
+    default_format: 'JSON'
+  });
+  const resp = await fetch(`http://${cfg.host}:${cfg.port}/?${params}`, {
+    method: 'POST', body: sql
+  });
+  if (!resp.ok) {
+    const text = await resp.text();
+    throw new Error(`ClickHouse ${resp.status}: ${text.slice(0, 200)}`);
+  }
+  return resp.json();
+}
+
+// ─── Utility ───────────────────────────────────────────────────────
+function formatRows(n) {
+  if (n == null) return '—';
+  if (n >= 1e8) return (n / 1e8).toFixed(2) + '亿';
+  if (n >= 1e4) return (n / 1e4).toFixed(1) + '万';
+  return n.toLocaleString();
+}
+
+function formatBytes(bytes) {
+  if (!bytes) return '—';
+  if (bytes >= 1e9) return (bytes / 1e9).toFixed(1) + ' GB';
+  if (bytes >= 1e6) return (bytes / 1e6).toFixed(1) + ' MB';
+  return bytes.toLocaleString() + ' B';
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return mins + ' 分钟前';
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return hours + ' 小时前';
+  return Math.floor(hours / 24) + ' 天前';
+}
+
+function statusColor(s) {
+  return { done:'var(--pos)', running:'var(--accent)', partial:'var(--warn)', failed:'var(--neg)', pending:'var(--mute)' }[s] || 'var(--mute)';
+}
+
+function statusCn(s) {
+  return { done:'已完成', running:'运行中', partial:'部分完成', failed:'失败', pending:'待执行' }[s] || s;
+}
+
+// ─── Sidebar ───────────────────────────────────────────────────────
+const PAGES = [
+  { id: 'dashboard',  label: 'Dashboard',   cn: '总览',     icon: '◎' },
+  { id: 'interfaces', label: 'Interfaces',  cn: '接口状态', icon: '≡' },
+  { id: 'data',       label: 'Data Viewer', cn: '数据浏览', icon: '▦' },
+  { id: 'scheduler',  label: 'Scheduler',   cn: '调度任务', icon: '⧗' },
+  { id: 'audit',      label: 'Audit',       cn: '审计日志', icon: '⎔' },
+  { id: 'verify',     label: 'Verify',      cn: '验证诊断', icon: '✓' },
+  { id: 'settings',   label: 'Settings',    cn: '连接设置', icon: '⚙' },
+];
+
+const Sidebar = {
+  props: ['currentPage'],
+  emits: ['navigate'],
+  setup(props, { emit }) {
+    const collapsed = ref(false);
+    return { props, emit, collapsed };
+  },
+  template: `
+  <aside :style="{ width: collapsed ? 56 : 200, flexShrink: 0, transition: 'width 240ms cubic-bezier(.2,.8,.2,1)', borderRight: '1px solid var(--line)', background: 'var(--panel)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }">
+    <div style="padding: collapsed ? '22px 8px' : '22px 16px', borderBottom: '1px solid var(--line)', display: 'flex', alignItems: 'center', gap: 10">
+      <div style="width:28;height:28;flexShrink:0;background:var(--accent);display:flex;alignItems:center;justifyContent:center;fontFamily:'var(--font-mono)';fontSize:14;fontWeight:700;color:var(--bg);borderRadius:var(--radius-sm)">T</div>
+      <template v-if="!collapsed">
+        <div>
+          <div style="fontFamily:'var(--font-display)';fontSize:15;fontWeight:500;letterSpacing:'-0.01em'">Tushare DB</div>
+          <div style="fontFamily:'var(--font-mono)';fontSize:9;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">v1.0 · LAN</div>
+        </div>
+      </template>
+    </div>
+    <nav style="flex:1;padding:16px 8px;display:flex;flexDirection:column;gap:2">
+      <button v-for="p in PAGES" :key="p.id"
+        @click="$emit('navigate', p.id)"
+        :style="{ display:'flex',alignItems:'center',gap:10,padding: collapsed ? '10px' : '10px 12px',justifyContent: collapsed ? 'center' : 'flex-start', background: currentPage===p.id ? 'var(--panel-soft)' : 'transparent', borderLeft: currentPage===p.id ? '2px solid var(--accent)' : '2px solid transparent', color: 'var(--fg)', cursor:'pointer', fontSize:13, borderRadius:0, transition:'background 120ms' }"
+        :title="p.label + ' ' + p.cn">
+        <span style="fontSize:15;width:18;textAlign:'center';color:currentPage===p.id?'var(--accent)':'var(--mute)'">{{ p.icon }}</span>
+        <template v-if="!collapsed">
+          <div style="flex:1;minWidth:0;textAlign:left">
+            <div style="fontFamily:'var(--font-mono)';fontSize:12;fontWeight:500">{{ p.label }}</div>
+            <div style="fontSize:10;color:var(--mute)">{{ p.cn }}</div>
+          </div>
+        </template>
+      </button>
+    </nav>
+    <div style="borderTop:'1px solid var(--line)',padding:12">
+      <button @click="collapsed=!collapsed" style="width:'100%';padding:'5px';border:'1px solid var(--line)';borderRadius:'var(--radius-sm)';color:'var(--mute)';fontFamily:'var(--font-mono)';fontSize:10;letterSpacing:'0.12em';textTransform:'uppercase'">
+        {{ collapsed ? '▸' : '◂ Collapse' }}
+      </button>
+    </div>
+  </aside>`
+};
+
+// ─── Status Badge ──────────────────────────────────────────────────
+const StatusBadge = {
+  props: ['status', 'size'],
+  template: `
+  <span :style="{ display:'inline-flex',alignItems:'center',gap:5,fontFamily:'var(--font-mono)',fontSize:size==='lg'?12:11,padding:size==='lg'?'4px 8px':'2px 6px',border:'1px solid '+statusColor(status),color:statusColor(status),background:(status==='failed'||status==='running')?statusColor(status)+'20':'transparent',borderRadius:'var(--radius-sm)',letterSpacing:'0.04em' }">
+    <span :style="{ width:6,height:6,borderRadius:'50%',background:statusColor(status),animation:status==='running'?'pulse 1.6s ease-in-out infinite':'none' }"></span>
+    {{ statusCn(status) }}
+  </span>`
+};
+
+// ─── Donut Chart ───────────────────────────────────────────────────
+const DonutChart = {
+  props: ['segments', 'size'],
+  setup(props) {
+    const chartRef = ref(null);
+    let chart = null;
+    onMounted(() => {
+      chart = echarts.init(chartRef.value);
+      chart.setOption({
+        series: [{
+          type: 'pie',
+          radius: ['55%', '80%'],
+          center: ['50%', '50%'],
+          data: props.segments.map(s => ({ value: s.value, name: s.label, itemStyle: { color: s.color } })),
+          label: { show: false },
+          labelLine: { show: false },
+        }],
+        tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' }
+      });
+    });
+    onUnmounted(() => chart?.dispose());
+    return { chartRef };
+  },
+  template: `<div ref="chartRef" :style="{ width: size||160, height: size||160 }"></div>`
+};
+
+// ─── Dashboard Page ────────────────────────────────────────────────
+const DashboardPage = {
+  setup() {
+    const stats = reactive({
+      tables: 0, tablesSynced: 0, totalRows: 0, storageBytes: 0, todayRows: 0
+    });
+    const statusCounts = reactive([]);
+    const alerts = ref([]);
+    const loading = ref(true);
+    const error = ref('');
+    let timer = null;
+
+    async function fetch() {
+      try {
+        const cfg = loadCHConfig();
+        // Tables count
+        const t1 = chQuery('SELECT count() as cnt FROM system.tables WHERE database=\'tushare\'', cfg);
+        // Total rows and storage
+        const t2 = chQuery('SELECT sum(rows) as total_rows, sum(bytes_on_disk) as total_bytes FROM system.parts WHERE active AND database=\'tushare\'', cfg);
+        // Status counts (map enum to string for ClickHouse)
+        const t3 = chQuery('SELECT toString(status) as status, count() as cnt FROM _meta.sync_state FINAL GROUP BY status ORDER BY cnt DESC', cfg);
+        // Alerts (failed/partial in last 24h)
+        const t4 = chQuery('SELECT interface, toString(status) as status, last_error FROM _meta.sync_state FINAL WHERE status IN (\'failed\',\'partial\') LIMIT 20', cfg);
+        // Synced tables
+        const t5 = chQuery('SELECT count(DISTINCT interface) as cnt FROM _meta.sync_state FINAL WHERE status=\'done\'', cfg);
+
+        const [r1, r2, r3, r4, r5] = await Promise.all([t1, t2, t3, t4, t5]);
+
+        stats.tables = r1.data?.[0]?.cnt || 0;
+        stats.totalRows = r2.data?.[0]?.total_rows || 0;
+        stats.storageBytes = r2.data?.[0]?.total_bytes || 0;
+        stats.tablesSynced = r5.data?.[0]?.cnt || 0;
+        stats.todayRows = 0; // would need sync_runs query
+
+        if (r3.data) {
+          statusCounts.length = 0;
+          r3.data.forEach(d => statusCounts.push({ label: d.status, value: d.cnt, color: statusColor(d.status) }));
+        }
+
+        if (r4.data) {
+          alerts.value = r4.data.map(d => ({ interface: d.interface, level: d.status === 'failed' ? 'error' : 'warn', msg: d.last_error || '' }));
+        }
+      } catch (e) {
+        error.value = e.message;
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    onMounted(() => {
+      fetch();
+      timer = setInterval(fetch, 30000);
+    });
+    onUnmounted(() => clearInterval(timer));
+
+    const donutTotal = computed(() => statusCounts.reduce((a, s) => a + s.value, 0));
+    const donePct = computed(() => {
+      const done = statusCounts.find(s => s.label === 'done');
+      return donutTotal.value ? Math.round((done?.value || 0) / donutTotal.value * 100) : 0;
+    });
+
+    return { stats, statusCounts, alerts, loading, error, donutTotal, donePct, fetch, formatRows, formatBytes, timeAgo };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <!-- Hero -->
+    <div style="display:flex;alignItems:'flex-end';justifyContent:'space-between';paddingBottom:'var(--pad)';borderBottom:'1px solid var(--line)'">
+      <div>
+        <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ dashboard — 总览</div>
+        <h1 style="fontSize:'clamp(28px,4vw,48px)';fontWeight:400;letterSpacing:'-0.02em';marginTop:10;fontFamily:'var(--font-display)';lineHeight:1">A 股数据仓库 <span style="color:var(--mute)">/</span> <span style="color:var(--accent)">Dashboard</span></h1>
+        <p style="fontSize:13;color:var(--mute);marginTop:8">ClickHouse HTTP 8123 · 只读连接</p>
+      </div>
+      <button @click="fetch" :style="{ fontFamily:'var(--font-mono)',fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',padding:'10px 16px',border:'1px solid var(--fg)',color:'var(--fg)',borderRadius:'var(--radius-sm)' }">↻ 刷新</button>
+    </div>
+
+    <div v-if="loading" style="padding:40px;textAlign:center;color:var(--mute);fontFamily:'var(--font-mono)';fontSize:13">加载中...</div>
+    <div v-else-if="error" style="padding:40px;text-align:center;color:var(--neg);font-family:'var(--font-mono)';font-size:13">
+      <div>⚠ 连接失败: {{ error }}</div>
+      <button @click="fetch" style="margin-top:16px;padding:'8px 16px';border:'1px solid var(--neg)';borderRadius:'var(--radius-sm)';color:'var(--neg)';fontFamily:'var(--font-mono)';fontSize:12">重试</button>
+      <div style="margin-top:8px;fontSize:11;color:var(--mute)">请在「连接设置」中检查配置</div>
+    </div>
+
+    <template v-if="!loading && !error">
+      <!-- 5 stat tiles -->
+      <div style="display:grid;gridTemplateColumns:'repeat(5,1fr)';gap:var(--gap)">
+        <div v-for="tile in [
+          {label:'接口总数',val:stats.tables,sub:'tables'},
+          {label:'已同步',val:stats.tablesSynced,sub:'interfaces'},
+          {label:'总行数',val:formatRows(stats.totalRows),sub:'rows'},
+          {label:'存储占用',val:formatBytes(stats.storageBytes),sub:'compressed'},
+          {label:'今日新增',val:'—',sub:'rows today'}
+        ]" :key="tile.label" :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+          <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase'">{{ tile.label }}</div>
+          <div style="fontFamily:'var(--font-display)';fontSize:'clamp(28px,3vw,40px)';fontWeight:400;letterSpacing:'-0.03em';lineHeight:1;marginTop:6">{{ tile.val }}</div>
+          <div style="fontFamily:'var(--font-mono)';fontSize:10;color:var(--mute);marginTop:8;letterSpacing:'0.08em'">{{ tile.sub }}</div>
+        </div>
+      </div>
+
+      <!-- Health + Trend -->
+      <div style="display:grid;gridTemplateColumns:'1fr 2fr';gap:var(--gap)">
+        <div :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+          <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:12">同步健康度</div>
+          <div style="display:flex;alignItems:'center';gap:20">
+            <DonutChart :segments="statusCounts" :size="150" />
+            <div style="flex:1;display:flex;flexDirection:column;gap:8">
+              <div style="fontFamily:'var(--font-display)';fontSize:36;fontWeight:400;letterSpacing:'-0.03em';lineHeight:1;textAlign:center">{{ donePct }}%</div>
+              <div style="fontFamily:'var(--font-mono)';fontSize:9;color:var(--mute);letterSpacing:'0.1em';textAlign:center">HEALTHY</div>
+              <div v-for="s in statusCounts" :key="s.label" style="display:flex;alignItems:'center';gap:8;paddingTop:6;borderTop:'1px solid var(--line)'">
+                <span :style="{ width:8,height:8,background:s.color,borderRadius:'50%' }"></span>
+                <span style="fontSize:11;fontFamily:'var(--font-mono);textTransform:'uppercase';letterSpacing:'0.08em';flex:1">{{ s.label }}</span>
+                <span style="fontFamily:'var(--font-mono)';fontSize:12;fontWeight:500">{{ s.value }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+          <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:8">存储分布 — Top 15 表</div>
+          <BarChart />
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div v-if="alerts.length" :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+        <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:12">告警 — 近 24h <span :style="{ color:'var(--neg)' }">({{ alerts.length }} events)</span></div>
+        <div v-for="(a, i) in alerts.slice(0, 8)" :key="i" style="display:flex;gap:12;padding:'8px 0';borderBottom: i < alerts.length-1 ? '1px solid var(--line)' : 'none'">
+          <span :style="{ width:4,height:4,background: a.level==='error' ? 'var(--neg)' : 'var(--warn)',borderRadius:'50%',marginTop:6,flexShrink:0 }"></span>
+          <div>
+            <span style="fontFamily:'var(--font-mono)';fontSize:12;color:statusColor(a.level==='error'?'failed':'partial');fontWeight:500">{{ a.interface }}</span>
+            <div style="fontSize:11;color:var(--fg);marginTop:2;lineHeight:1.4;maxWidth:600;overflow:'hidden';textOverflow:'ellipsis';whiteSpace:'nowrap'">{{ a.msg }}</div>
+          </div>
+        </div>
+      </div>
+    </template>
+  </div>`
+};
+
+// ─── Bar Chart Component ───────────────────────────────────────────
+const BarChart = {
+  setup() {
+    const chartRef = ref(null);
+    let chart = null;
+    onMounted(async () => {
+      chart = echarts.init(chartRef.value);
+      try {
+        const cfg = loadCHConfig();
+        const res = await chQuery('SELECT table, sum(bytes_on_disk) as bytes FROM system.parts WHERE active AND database=\'tushare\' GROUP BY table ORDER BY bytes DESC LIMIT 15', cfg);
+        if (res.data) {
+          chart.setOption({
+            grid: { left: 100, right: 20, top: 10, bottom: 30 },
+            xAxis: { type: 'value', axisLabel: { formatter: v => formatBytes(v), color: 'var(--mute)', fontSize: 10 }, splitLine: { lineStyle: { color: 'var(--line)' } } },
+            yAxis: { type: 'category', data: res.data.map(d => d.table).reverse(), axisLabel: { color: 'var(--fg)', fontSize: 10, fontFamily: 'var(--font-mono)' } },
+            series: [{ type: 'bar', data: res.data.map(d => d.bytes).reverse(), itemStyle: { color: 'var(--accent)' }, barMaxWidth: 16 }]
+          });
+        }
+      } catch(e) {
+        chart.setOption({ title: { text: '连接失败', left: 'center', top: 'middle', textStyle: { color: 'var(--neg)' } } });
+      }
+    });
+    onUnmounted(() => chart?.dispose());
+    return { chartRef, formatBytes };
+  },
+  template: `<div ref="chartRef" style="width:100%;height:280px"></div>`
+};
+
+// ─── Interfaces Page ───────────────────────────────────────────────
+const InterfacesPage = {
+  setup() {
+    const interfaces = ref([]);
+    const loading = ref(true);
+    const error = ref('');
+    const search = ref('');
+    const filterStatus = ref('all');
+    const selected = ref(null);
+
+    async function fetch() {
+      try {
+        const cfg = loadCHConfig();
+        const res = await chQuery(`
+          SELECT interface, max(last_success_at) as last_sync,
+                 countIf(toString(status)='done') as done_units,
+                 countIf(toString(status)='running') as running_units,
+                 countIf(toString(status)='failed') as failed_units,
+                 countIf(toString(status)='partial') as partial_units,
+                 sum(rows) as total_rows
+          FROM _meta.sync_state FINAL
+          GROUP BY interface ORDER BY interface`, cfg);
+        if (res.data) {
+          interfaces.value = res.data.map(d => ({
+            ...d,
+            status: d.failed_units > 0 ? 'failed' : d.partial_units > 0 ? 'partial' : d.running_units > 0 ? 'running' : d.done_units > 0 ? 'done' : 'pending'
+          }));
+        }
+      } catch(e) { error.value = e.message; }
+      finally { loading.value = false; }
+    }
+
+    onMounted(fetch);
+
+    const filtered = computed(() => {
+      let list = interfaces.value;
+      if (search.value) {
+        const q = search.value.toLowerCase();
+        list = list.filter(d => d.interface.toLowerCase().includes(q));
+      }
+      if (filterStatus.value !== 'all') {
+        list = list.filter(d => d.status === filterStatus.value);
+      }
+      return list;
+    });
+
+    return { interfaces, loading, error, search, filterStatus, selected, fetch, filtered, statusColor, statusCn, formatRows, timeAgo };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <div style="display:flex;alignItems:'center';justifyContent:'space-between';gap:12;flexWrap:'wrap'">
+      <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ interfaces — 接口状态</div>
+      <button @click="fetch" :style="{ fontFamily:'var(--font-mono)';fontSize:11;padding:'8px 14px';border:'1px solid var(--fg)';borderRadius:'var(--radius-sm)' }">↻ 刷新</button>
+    </div>
+
+    <!-- Filters -->
+    <div style="display:flex;gap:12;alignItems:'center'">
+      <input v-model="search" placeholder="搜索接口名..." :style="{ flex:1,padding:'8px 12px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)' }" />
+      <select v-model="filterStatus" :style="{ padding:'8px 12px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)' }">
+        <option value="all">全部状态</option>
+        <option value="done">已完成</option>
+        <option value="running">运行中</option>
+        <option value="partial">部分完成</option>
+        <option value="failed">失败</option>
+        <option value="pending">待执行</option>
+      </select>
+    </div>
+
+    <div v-if="loading" style="padding:40px;text-align:center;color:var(--mute)">加载中...</div>
+    <div v-else-if="error" style="padding:40px;text-align:center;color:var(--neg)">{{ error }}</div>
+    <div v-else>
+      <!-- Table -->
+      <div style="border:1px solid var(--line);borderRadius:'var(--radius)';overflow:auto">
+        <table style="width:100%;borderCollapse:collapse;fontSize:12">
+          <thead>
+            <tr style="borderBottom:'1px solid var(--line)';textAlign:'left'">
+              <th style="padding:'10px 14px';color:var(--mute);fontFamily:'var(--font-mono)';fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';fontWeight:500;position:'sticky';top:0;background:'var(--panel)'">接口</th>
+              <th style="padding:'10px 14px';color:var(--mute);fontFamily:'var(--font-mono)';fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';fontWeight:500;position:'sticky';top:0;background:'var(--panel)'">状态</th>
+              <th style="padding:'10px 14px';color:var(--mute);fontFamily:'var(--font-mono)';fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';fontWeight:500;position:'sticky';top:0;background:'var(--panel)';textAlign:'right'">已完成</th>
+              <th style="padding:'10px 14px';color:var(--mute);fontFamily:'var(--font-mono)';fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';fontWeight:500;position:'sticky';top:0;background:'var(--panel)';textAlign:'right'">总行数</th>
+              <th style="padding:'10px 14px';color:var(--mute);fontFamily:'var(--font-mono)';fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';fontWeight:500;position:'sticky';top:0;background:'var(--panel)'">最后同步</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="item in filtered" :key="item.interface"
+              @click="selected = item"
+              :style="{ borderBottom:'1px solid var(--line)',cursor:'pointer',transition:'background 120ms' }"
+              @mouseenter="$el && ($el.style.background='var(--panel-soft)')"
+              @mouseleave="$el && ($el.style.background='transparent')">
+              <td style="padding:'10px 14px';fontFamily:'var(--font-mono)';fontWeight:500">{{ item.interface }}</td>
+              <td style="padding:'10px 14px'"><StatusBadge :status="item.status" /></td>
+              <td style="padding:'10px 14px';textAlign:'right';fontFamily:'var(--font-mono)'">{{ item.done_units }}</td>
+              <td style="padding:'10px 14px';textAlign:'right';fontFamily:'var(--font-mono)'">{{ formatRows(item.total_rows) }}</td>
+              <td style="padding:'10px 14px';fontFamily:'var(--font-mono)';fontSize:11;color:'var(--mute)'">{{ timeAgo(item.last_sync) }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <div v-if="!filtered.length" style="padding:40px;text-align:center;color:var(--mute)">无匹配结果</div>
+      </div>
+
+      <!-- Detail drawer -->
+      <div v-if="selected" :style="{ position:'fixed',top:0,right:0,width:380,height:'100vh',background:'var(--panel)',borderLeft:'1px solid var(--line)',padding:'var(--pad-lg)',overflow:'auto',zIndex:100,animation:'fadeIn 200ms ease-out' }">
+        <button @click="selected=null" style="position:'absolute';top:12;right:12;padding:8;color:'var(--mute)';fontSize:18">✕</button>
+        <div style="fontFamily:'var(--font-mono)';fontSize:16;fontWeight:500;marginBottom:16">{{ selected.interface }}</div>
+        <div style="marginBottom:12"><StatusBadge :status="selected.status" size="lg" /></div>
+        <div style="display:grid;gridTemplateColumns:'1fr 1fr';gap:8;marginBottom:20">
+          <div style="padding:10px;background:'var(--panel-soft)';borderRadius:'var(--radius-sm)'">
+            <div style="fontSize:10;color:var(--mute);letterSpacing:'0.1em';textTransform:'uppercase'">已完成单元</div>
+            <div style="fontFamily:'var(--font-mono)';fontSize:18;marginTop:4">{{ selected.done_units }}</div>
+          </div>
+          <div style="padding:10px;background:'var(--panel-soft)';borderRadius:'var(--radius-sm)'">
+            <div style="fontSize:10;color:var(--mute);letterSpacing:'0.1em';textTransform:'uppercase'">总行数</div>
+            <div style="fontFamily:'var(--font-mono)';fontSize:14;marginTop:4">{{ formatRows(selected.total_rows) }}</div>
+          </div>
+        </div>
+        <div style="fontSize:11;color:var(--mute);letterSpacing:'0.1em';textTransform:'uppercase';marginBottom:8">最近同步记录</div>
+        <div style="fontSize:12;color:var(--fg);fontFamily:'var(--font-mono)'">
+          <div v-if="selected.last_sync">最后成功: {{ selected.last_sync }}</div>
+        </div>
+      </div>
+    </div>
+  </div>`
+};
+
+// ─── Data Viewer Page ──────────────────────────────────────────────
+const DataViewerPage = {
+  setup() {
+    const sql = ref('SELECT trade_date, ts_code, open, high, low, close, vol, amount FROM tushare.daily ORDER BY trade_date DESC LIMIT 100');
+    const results = ref([]);
+    const columns = ref([]);
+    const loading = ref(false);
+    const error = ref('');
+    const elapsed = ref(0);
+    const showChart = ref(false);
+    const chartRef = ref(null);
+    let chart = null;
+
+    async function runQuery() {
+      loading.value = true;
+      error.value = '';
+      results.value = [];
+      columns.value = [];
+      showChart.value = false;
+      const start = performance.now();
+      try {
+        const cfg = loadCHConfig();
+        const res = await chQuery(sql.value, cfg);
+        elapsed.value = Math.round(performance.now() - start);
+        if (res.data) {
+          results.value = res.data;
+          columns.value = res.meta?.map(m => m.name) || Object.keys(res.data[0] || {});
+          // Auto-show chart for OHLCV data
+          if (columns.value.includes('open') && columns.value.includes('close') && columns.value.includes('high') && columns.value.includes('low')) {
+            showChart.value = true;
+            nextTick(() => initChart());
+          }
+        }
+      } catch(e) {
+        error.value = e.message;
+        elapsed.value = Math.round(performance.now() - start);
+      } finally {
+        loading.value = false;
+      }
+    }
+
+    function initChart() {
+      if (!chartRef.value || !results.value.length) return;
+      chart?.dispose();
+      chart = echarts.init(chartRef.value);
+      const data = results.value.slice(0, 200).reverse();
+      const dates = data.map(d => String(d.trade_date));
+      chart.setOption({
+        title: { text: 'K线图 (前200条)', left: 'center', textStyle: { color: 'var(--fg)', fontSize: 12, fontFamily: 'var(--font-mono)' } },
+        grid: { left: 60, right: 20, top: 40, bottom: 40 },
+        xAxis: { type: 'category', data: dates, axisLabel: { color: 'var(--mute)', fontSize: 10, rotate: 30 } },
+        yAxis: { type: 'value', axisLabel: { color: 'var(--mute)', fontSize: 10 }, splitLine: { lineStyle: { color: 'var(--line)' } } },
+        series: [{ type: 'candlestick', data: data.map(d => [d.open, d.close, d.low, d.high]), itemStyle: { color: '#4ad88a', color0: '#ff6b6b', borderColor: '#4ad88a', borderColor0: '#ff6b6b' } }]
+      });
+    }
+
+    const templates = [
+      { label: '日线行情', sql: 'SELECT trade_date, ts_code, open, high, low, close, vol, amount FROM tushare.daily ORDER BY trade_date DESC LIMIT 100' },
+      { label: '资金流向 Top30', sql: 'SELECT ts_code, trade_date, buy_elg_amount, sell_elg_amount, net_buy_amount FROM tushare.moneyflow ORDER BY trade_date DESC LIMIT 100' },
+      { label: '表列表', sql: 'SELECT name, engine, total_rows, formatReadableSize(total_bytes) FROM system.tables WHERE database=\'tushare\' ORDER BY name' },
+    ];
+
+    return { sql, results, columns, loading, error, elapsed, showChart, chartRef, runQuery, templates, formatRows };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ data — 数据浏览</div>
+
+    <!-- Templates -->
+    <div style="display:flex;gap:8;flexWrap:'wrap'">
+      <button v-for="t in templates" :key="t.label"
+        @click="sql=t.sql"
+        :style="{ padding:'6px 14px',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',fontSize:11,fontFamily:'var(--font-mono)',transition:'background 120ms' }">
+        {{ t.label }}
+      </button>
+    </div>
+
+    <!-- SQL Editor -->
+    <div style="display:flex;gap:8">
+      <textarea v-model="sql" rows="3"
+        :style="{ flex:1,padding:12,background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)',fontFamily:'var(--font-mono)',fontSize:12,lineHeight:1.5,resize:'vertical' }"
+        placeholder="输入 SQL 查询..."></textarea>
+    </div>
+    <button @click="runQuery" :disabled="loading"
+      :style="{ padding:'8px 20px',background:'var(--accent)',color:'var(--bg)',borderRadius:'var(--radius-sm)',fontFamily:'var(--font-mono)',fontSize:12,fontWeight:500,opacity:loading?0.6:1 }">
+      {{ loading ? '执行中...' : '▶ 执行查询' }}
+    </button>
+
+    <!-- Error -->
+    <div v-if="error" style="padding:12;background:'var(--panel)',border:'1px solid var(--neg)',borderRadius:'var(--radius-sm)',color:'var(--neg)',fontFamily:'var(--font-mono)',fontSize:12">{{ error }}</div>
+
+    <!-- Stats -->
+    <div v-if="results.length" style="display:flex;gap:16;alignItems:'center'">
+      <span style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute)">{{ results.length }} 行 · {{ elapsed }}ms</span>
+    </div>
+
+    <!-- Chart -->
+    <div v-if="showChart" style="background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)'">
+      <div ref="chartRef" style="width:100%;height:350px"></div>
+    </div>
+
+    <!-- Results Table -->
+    <div v-if="results.length" style="border:1px solid var(--line);borderRadius:'var(--radius)';overflow:auto;maxHeight:400">
+      <table style="width:100%;borderCollapse:collapse;fontSize:11;fontFamily:'var(--font-mono)'">
+        <thead>
+          <tr style="borderBottom:'1px solid var(--line)'">
+            <th v-for="col in columns" :key="col" style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'left';position:'sticky';top:0;background:'var(--panel)'">{{ col }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, i) in results.slice(0, 100)" :key="i" style="borderBottom:'1px solid var(--line)'">
+            <td v-for="col in columns" :key="col" style="padding:'8px 10px';color:'var(--fg)'">{{ row[col] }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="results.length > 100" style="padding:8px;text-align:center;color:var(--mute);fontSize:11">仅显示前 100 行，共 {{ results.length }} 行</div>
+    </div>
+  </div>`
+};
+
+// ─── Scheduler Page ────────────────────────────────────────────────
+const SchedulerPage = {
+  setup() {
+    const runs = ref([]);
+    const loading = ref(true);
+    const error = ref('');
+
+    const jobs = [
+      { name: 'Batch A — 日线行情', time: '17:00', days: '工作日', desc: 'daily, adj_factor, stk_limit 等' },
+      { name: 'Batch B — 资金流', time: '18:00', days: '工作日', desc: 'moneyflow, hk_hold, top_list 等' },
+      { name: 'Batch C — 龙虎榜/概念', time: '19:00', days: '工作日', desc: 'top_list, ths_daily, dc_daily 等' },
+      { name: 'Batch D — 宏观经济', time: '19:45', days: '工作日', desc: 'cn_gdp, cn_cpi, shibor 等' },
+      { name: '周六长尾', time: '02:00', days: '周六', desc: 'per_symbol_period 接口' },
+      { name: '参考表刷新', time: '06:00', days: '每天', desc: 'stock_basic, trade_cal 等' },
+      { name: '每周对账', time: '02:00', days: '周日', desc: 'P0/P1 缺口扫描' },
+      { name: '行数验证', time: '03:00', days: '每天', desc: 'T-1 行数验证' },
+    ];
+
+    async function fetch() {
+      try {
+        const cfg = loadCHConfig();
+        const res = await chQuery('SELECT run_id, interface, toString(started_at) as started_at, toString(status) as status, units_total, units_done FROM _meta.sync_runs ORDER BY started_at DESC LIMIT 20', cfg);
+        if (res.data) runs.value = res.data;
+      } catch(e) { error.value = e.message; }
+      finally { loading.value = false; }
+    }
+
+    onMounted(fetch);
+    return { jobs, runs, loading, error, fetch, statusColor, statusCn };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <div style="display:flex;alignItems:'center';justifyContent:'space-between'">
+      <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ scheduler — 调度任务</div>
+      <button @click="fetch" :style="{ fontFamily:'var(--font-mono)';fontSize:11;padding:'8px 14px';border:'1px solid var(--fg)';borderRadius:'var(--radius-sm)' }">↻ 刷新</button>
+    </div>
+
+    <!-- Job Cards -->
+    <div style="display:grid;gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))';gap:var(--gap)">
+      <div v-for="(job, i) in jobs" :key="i" :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+        <div style="display:flex;justifyContent:'space-between';alignItems:'center';marginBottom:8">
+          <div style="fontFamily:'var(--font-mono)';fontSize:13;fontWeight:500">{{ job.name }}</div>
+          <div style="fontFamily:'var(--font-mono)';fontSize:12;color:var(--accent)">{{ job.time }}</div>
+        </div>
+        <div style="fontSize:11;color:var(--mute);marginBottom:6">{{ job.desc }}</div>
+        <div style="fontFamily:'var(--font-mono)';fontSize:10;color:var(--mute)">{{ job.days }}</div>
+      </div>
+    </div>
+
+    <!-- Recent Runs -->
+    <div :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+      <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:12">最近运行记录</div>
+      <div v-if="loading" style="padding:20px;text-align:center;color:var(--mute)">加载中...</div>
+      <div v-else-if="error" style="padding:20px;text-align:center;color:var(--neg)">{{ error }}</div>
+      <div v-else>
+        <div v-for="run in runs" :key="run.run_id" style="display:grid;gridTemplateColumns:'1fr auto auto';gap:12;padding:'8px 0';borderBottom:'1px solid var(--line)'">
+          <div>
+            <div style="fontFamily:'var(--font-mono)';fontSize:12;fontWeight:500">{{ run.interface }}</div>
+            <div style="fontSize:10;color:var(--mute);marginTop:2">{{ run.started_at }}</div>
+          </div>
+          <StatusBadge :status="run.status" />
+          <div style="fontFamily:'var(--font-mono)';fontSize:11;color:'var(--mute)';textAlign:'right'">
+            {{ run.units_done }}/{{ run.units_total }}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>`
+};
+
+// ─── Audit Page ────────────────────────────────────────────────────
+const AuditPage = {
+  setup() {
+    const calls = ref([]);
+    const loading = ref(true);
+    const error = ref('');
+    const filterInterface = ref('all');
+    const filterStatus = ref('all');
+    const dateFrom = ref(new Date(Date.now() - 86400000).toISOString().slice(0, 10));
+    const dateTo = ref(new Date().toISOString().slice(0, 10));
+
+    async function fetch() {
+      try {
+        const cfg = loadCHConfig();
+        let sql = `SELECT interface, status, started_at, duration_ms, rows FROM _meta.api_calls WHERE started_at >= '${dateFrom.value} 00:00:00' AND started_at < '${dateTo.value} 23:59:59' ORDER BY started_at DESC LIMIT 500`;
+        const res = await chQuery(sql, cfg);
+        if (res.data) {
+          calls.value = res.data.map(c => ({
+            ...c,
+            status: c.status === 200 ? 'success' : c.status === 429 ? 'rate_limited' : 'failed'
+          }));
+        }
+      } catch(e) { error.value = e.message; }
+      finally { loading.value = false; }
+    }
+
+    onMounted(fetch);
+
+    const stats = computed(() => {
+      const total = calls.value.length;
+      const ok = calls.value.filter(c => c.status === 'success').length;
+      const err = total - ok;
+      const avgMs = total ? Math.round(calls.value.reduce((a, c) => a + (c.duration_ms || 0), 0) / total) : 0;
+      return { total, ok, err, avgMs };
+    });
+
+    const filtered = computed(() => {
+      let list = calls.value;
+      if (filterInterface.value !== 'all') list = list.filter(c => c.interface === filterInterface.value);
+      if (filterStatus.value !== 'all') list = list.filter(c => c.status === filterStatus.value);
+      return list;
+    });
+
+    const interfaces = computed(() => [...new Set(calls.value.map(c => c.interface))]);
+
+    return { calls, loading, error, filterInterface, filterStatus, dateFrom, dateTo, fetch, filtered, stats, interfaces };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <div style="display:flex;alignItems:'center';justifyContent:'space-between'">
+      <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ audit — API 调用审计</div>
+      <button @click="fetch" :style="{ fontFamily:'var(--font-mono)';fontSize:11;padding:'8px 14px';border:'1px solid var(--fg)';borderRadius:'var(--radius-sm)' }">↻ 刷新</button>
+    </div>
+
+    <!-- Date filter -->
+    <div style="display:flex;gap:12;alignItems:'center';flexWrap:'wrap'">
+      <label style="fontSize:11;color:var(--mute)">从 <input v-model="dateFrom" type="date" :style="{ marginLeft:4,padding:'4px 8px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)' }"></label>
+      <label style="fontSize:11;color:var(--mute)">到 <input v-model="dateTo" type="date" :style="{ marginLeft:4,padding:'4px 8px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)' }"></label>
+      <select v-model="filterInterface" :style="{ padding:'6px 10px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)',fontSize:12 }">
+        <option value="all">全部接口</option>
+        <option v-for="iface in interfaces" :key="iface" :value="iface">{{ iface }}</option>
+      </select>
+      <select v-model="filterStatus" :style="{ padding:'6px 10px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)',fontSize:12 }">
+        <option value="all">全部状态</option>
+        <option value="success">成功</option>
+        <option value="failed">失败</option>
+      </select>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:grid;gridTemplateColumns:'repeat(4,1fr)';gap:var(--gap)">
+      <div v-for="s in [
+        {label:'总调用',val:stats.total},
+        {label:'成功',val:stats.ok,color:'var(--pos)'},
+        {label:'失败',val:stats.err,color:'var(--neg)'},
+        {label:'平均耗时',val:stats.avgMs+'ms'}
+      ]" :key="s.label" :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+        <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase'">{{ s.label }}</div>
+        <div :style="{ fontFamily:'var(--font-display)';fontSize:28;fontWeight:400;letterSpacing:'-0.03em';lineHeight:1;marginTop:6,color:s.color||'var(--fg)' }">{{ s.val }}</div>
+      </div>
+    </div>
+
+    <!-- Calls table -->
+    <div v-if="loading" style="padding:20px;text-align:center;color:var(--mute)">加载中...</div>
+    <div v-else-if="error" style="padding:20px;text-align:center;color:var(--neg)">{{ error }}</div>
+    <div v-else style="border:1px solid var(--line);borderRadius:'var(--radius)';overflow:auto;maxHeight:400">
+      <table style="width:100%;borderCollapse:collapse;fontSize:11;fontFamily:'var(--font-mono)'">
+        <thead>
+          <tr style="borderBottom:'1px solid var(--line)'">
+            <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'left';position:'sticky';top:0;background:'var(--panel)'">时间</th>
+            <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'left';position:'sticky';top:0;background:'var(--panel)'">接口</th>
+            <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'right';position:'sticky';top:0;background:'var(--panel)'">耗时</th>
+            <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'right';position:'sticky';top:0;background:'var(--panel)'">状态</th>
+            <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'right';position:'sticky';top:0;background:'var(--panel)'">行数</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(c, i) in filtered.slice(0, 200)" :key="i" style="borderBottom:'1px solid var(--line)'">
+            <td style="padding:'8px 10px'">{{ String(c.started_at).slice(5, 19) }}</td>
+            <td style="padding:'8px 10px';fontWeight:500">{{ c.interface }}</td>
+            <td style="padding:'8px 10px';textAlign:'right'">{{ c.duration_ms }}ms</td>
+            <td style="padding:'8px 10px';textAlign:'right'">
+              <span :style="{ color: c.status === 'success' ? 'var(--pos)' : 'var(--neg)' }">{{ c.status === 'success' ? '✓' : '✕' }}</span>
+            </td>
+            <td style="padding:'8px 10px';textAlign:'right'">{{ c.rows || 0 }}</td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="!filtered.length" style="padding:40px;text-align:center;color:var(--mute)">无匹配结果</div>
+    </div>
+  </div>`
+};
+
+// ─── Verify Page ───────────────────────────────────────────────────
+const VerifyPage = {
+  setup() {
+    const rowResults = ref([]);
+    const gapResults = ref([]);
+    const loading = ref(false);
+    const error = ref('');
+    const priority = ref('P0');
+    const interfaceName = ref('');
+
+    async function runVerify(type) {
+      loading.value = true;
+      error.value = '';
+      try {
+        const cfg = loadCHConfig();
+        if (type === 'rows') {
+          const sql = `SELECT interface, 'total' as table, 'ok' as status, sum(rows) as row_count, countIf(toString(status)='done') as sync_done, countIf(toString(status)='partial') as sync_partial, countIf(toString(status)='failed') as sync_failed FROM _meta.sync_state FINAL GROUP BY interface`;
+          const res = await chQuery(sql, cfg);
+          if (res.data) rowResults.value = res.data;
+        } else if (type === 'gaps') {
+          const iface = interfaceName.value || 'daily';
+          const sql = `SELECT cal_date FROM _meta.trade_cal WHERE is_open = 1 AND cal_date >= '20240101' AND cal_date NOT IN (SELECT DISTINCT trade_date FROM tushare.${iface} WHERE trade_date >= '20240101') ORDER BY cal_date LIMIT 50`;
+          const res = await chQuery(sql, cfg);
+          if (res.data) gapResults.value = res.data.map(d => ({ missing_date: d.cal_date, interface: iface }));
+        }
+      } catch(e) { error.value = e.message; }
+      finally { loading.value = false; }
+    }
+
+    return { rowResults, gapResults, loading, error, priority, interfaceName, runVerify };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ verify — 验证诊断</div>
+
+    <!-- Operations -->
+    <div style="display:grid;gridTemplateColumns:'repeat(auto-fill,minmax(220px,1fr))';gap:var(--gap)">
+      <div v-for="op in [
+        {id:'rows',label:'行计数验证',desc:'检查各接口行数与同步状态'},
+        {id:'gaps',label:'缺口检测',desc:'查找缺失的交易日期'},
+      ]" :key="op.id"
+        :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)',cursor:'pointer' }"
+        @click="runVerify(op.id)">
+        <div style="fontFamily:'var(--font-mono)';fontSize:13;fontWeight:500;marginBottom:4">{{ op.label }}</div>
+        <div style="fontSize:11;color:var(--mute)">{{ op.desc }}</div>
+        <button :style="{ marginTop:10,padding:'6px 14px',background:'var(--accent)',color:'var(--bg)',borderRadius:'var(--radius-sm)',fontSize:11,fontFamily:'var(--font-mono)' }">
+          {{ loading ? '执行中...' : '执行' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Gap interface input -->
+    <div v-if="gapResults.length" style="display:flex;gap:12;alignItems:'center'">
+      <label style="fontSize:12;color:var(--mute)">检测接口:
+        <input v-model="interfaceName" placeholder="daily" :style="{ marginLeft:4,padding:'4px 8px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)',width:100 }" />
+      </label>
+    </div>
+
+    <div v-if="error" style="padding:12;background:'var(--panel)',border:'1px solid var(--neg)',borderRadius:'var(--radius-sm)',color:'var(--neg)',fontFamily:'var(--font-mono)',fontSize:12">{{ error }}</div>
+
+    <!-- Row count results -->
+    <div v-if="rowResults.length" :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+      <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:12">行计数结果</div>
+      <div style="border:1px solid var(--line);borderRadius:'var(--radius-sm)';overflow:auto;maxHeight:400">
+        <table style="width:100%;borderCollapse:collapse;fontSize:11;fontFamily:'var(--font-mono)'">
+          <thead>
+            <tr style="borderBottom:'1px solid var(--line)'">
+              <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'left';position:'sticky';top:0;background:'var(--panel)'">接口</th>
+              <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'right';position:'sticky';top:0;background:'var(--panel)'">总行数</th>
+              <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'right';position:'sticky';top:0;background:'var(--panel)'">已完成</th>
+              <th style="padding:'8px 10px';color:var(--mute);fontSize:10;letterSpacing:'0.1em';textTransform:'uppercase';textAlign:'right';position:'sticky';top:0;background:'var(--panel)'">失败</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="r in rowResults" :key="r.interface" style="borderBottom:'1px solid var(--line)'">
+              <td style="padding:'8px 10px';fontWeight:500">{{ r.interface }}</td>
+              <td style="padding:'8px 10px';textAlign:'right'">{{ r.row_count?.toLocaleString() || '—' }}</td>
+              <td style="padding:'8px 10px';textAlign:'right';color:'var(--pos)'">{{ r.sync_done }}</td>
+              <td style="padding:'8px 10px';textAlign:'right';color:'var(--neg)'">{{ r.sync_failed }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Gap results -->
+    <div v-if="gapResults.length" :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)' }">
+      <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:12">缺失日期 ({{ gapResults.length }} 天)</div>
+      <div style="fontFamily:'var(--font-mono)';fontSize:12;display:flex;flexWrap:'wrap';gap:6">
+        <span v-for="g in gapResults.slice(0, 50)" :key="g.missing_date" style="padding:'3px 8px',background:'var(--neg)',color:'var(--bg)',borderRadius:'var(--radius-sm)';fontSize:11">{{ g.missing_date }}</span>
+      </div>
+    </div>
+  </div>`
+};
+
+// ─── Settings Page ─────────────────────────────────────────────────
+const SettingsPage = {
+  setup() {
+    const config = reactive(loadCHConfig());
+    const testResult = ref('');
+    const testLoading = ref(false);
+
+    function save() {
+      localStorage.setItem('tushare_ch_config', JSON.stringify({
+        host: config.host, port: config.port, user: config.user, password: config.password, database: config.database, useProxy: config.useProxy
+      }));
+      testResult.value = '✓ 已保存到本地存储';
+    }
+
+    async function testConnection() {
+      testLoading.value = true;
+      testResult.value = '';
+      try {
+        const res = await chQuery('SELECT 1', { ...config });
+        testResult.value = `✓ 连接成功: ${res.data?.[0]?.[Object.keys(res.data[0])[0]]}`;
+      } catch(e) {
+        testResult.value = `✕ 连接失败: ${e.message}`;
+      } finally {
+        testLoading.value = false;
+      }
+    }
+
+    return { config, testResult, testLoading, save, testConnection };
+  },
+  template: `
+  <div style="display:flex;flexDirection:column;gap:var(--gap);padding:var(--pad-lg);minHeight:100%;overflow:auto;animation:fadeIn 300ms ease-out">
+    <div style="fontFamily:'var(--font-mono)';fontSize:11;color:var(--mute);letterSpacing:'0.14em';textTransform:'uppercase'">/ settings — 连接设置</div>
+
+    <div :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad-lg)',maxWidth:480 }">
+      <div style="fontSize:14;fontWeight:500;marginBottom:20">ClickHouse 连接</div>
+
+      <div style="marginBottom:14">
+        <label style="display:flex;alignItems:center;gap:8;fontSize:12;color:var(--fg);cursor:pointer">
+          <input type="checkbox" v-model="config.useProxy"
+            :style="{ accentColor:'var(--accent)', width:14, height:14 }" />
+          使用 Nginx 代理 (推荐，避免跨域)
+        </label>
+        <div style="fontSize:11;color:var(--mute);marginLeft:22">通过 /api/ch/ 代理请求，无需浏览器直连 ClickHouse</div>
+      </div>
+
+      <div style="fontSize:13;fontWeight:500;marginBottom:20;marginTop:16">ClickHouse 直连参数 {{ config.useProxy ? '(代理模式下可选)' : '' }}</div>
+
+      <div v-for="field in [
+        {key:'host',label:'Host',placeholder:'localhost'},
+        {key:'port',label:'Port',placeholder:'8123',type:'number'},
+        {key:'user',label:'User',placeholder:'ai_reader'},
+        {key:'password',label:'Password',placeholder:'密码',type:'password'},
+        {key:'database',label:'Database',placeholder:'tushare'},
+      ]" :key="field.key" style="marginBottom:14">
+        <label style="display:block;fontSize:11;color:var(--mute);letterSpacing:'0.08em';marginBottom:4">{{ field.label }}</label>
+        <input :type="field.type||'text'" v-model="config[field.key]" :placeholder="field.placeholder"
+          :style="{ width:'100%',padding:'8px 12px',background:'var(--panel-soft)',border:'1px solid var(--line)',borderRadius:'var(--radius-sm)',color:'var(--fg)',fontSize:13 }" />
+      </div>
+
+      <div style="display:flex;gap:12;marginTop:20">
+        <button @click="testConnection" :disabled="testLoading"
+          :style="{ padding:'8px 18px',border:'1px solid var(--accent)',color:'var(--accent)',borderRadius:'var(--radius-sm)',fontFamily:'var(--font-mono)',fontSize:12,opacity:testLoading?0.6:1 }">
+          {{ testLoading ? '测试中...' : '测试连接' }}
+        </button>
+        <button @click="save"
+          :style="{ padding:'8px 18px',background:'var(--accent)',color:'var(--bg)',borderRadius:'var(--radius-sm)',fontFamily:'var(--font-mono)',fontSize:12 }">
+          保存
+        </button>
+      </div>
+
+      <div v-if="testResult" :style="{ marginTop:14,padding:'8px 12px',borderRadius:'var(--radius-sm)',fontSize:12,fontFamily:'var(--font-mono)',color:testResult.startsWith('✓')?'var(--pos)':'var(--neg)',background:testResult.startsWith('✓')?'var(--pos)15':'var(--neg)15' }">
+        {{ testResult }}
+      </div>
+    </div>
+
+    <div :style="{ background:'var(--panel)',border:'1px solid var(--line)',borderRadius:'var(--radius)',padding:'var(--pad)',maxWidth:480 }">
+      <div style="fontSize:13;fontWeight:500;marginBottom:12">关于</div>
+      <div style="fontSize:12;color:var(--mute);lineHeight:1.6">
+        <div>Tushare DB Dashboard — Vue 3 单文件应用</div>
+        <div>推荐：通过 Nginx 代理 /api/ch/ 访问 (port 3001)</div>
+        <div>或直连 ClickHouse HTTP 接口 (port 8123)</div>
+        <div>只读用户: ai_reader · max_execution_time=30s</div>
+        <div style="marginTop:8">配置可通过 URL 参数注入: ?ch_host=&ch_password=</div>
+        <div>配置保存在浏览器 localStorage 中</div>
+      </div>
+    </div>
+  </div>`
+};
+
+// ─── Main App ──────────────────────────────────────────────────────
+const app = createApp({
+  setup() {
+    const page = ref('dashboard');
+    const components = {
+      dashboard: DashboardPage,
+      interfaces: InterfacesPage,
+      data: DataViewerPage,
+      scheduler: SchedulerPage,
+      audit: AuditPage,
+      verify: VerifyPage,
+      settings: SettingsPage,
+    };
+
+    return { page, components };
+  },
+  template: `
+  <div style="display:flex;height:100vh;width:100vw;background:var(--bg);color:var(--fg)">
+    <Sidebar :currentPage="page" @navigate="page=$event" />
+    <main style="flex:1;minWidth:0;overflow:auto;position:relative">
+      <component :is="components[page]" :key="page" />
+    </main>
+  </div>`
+});
+
+app.component('Sidebar', Sidebar);
+app.component('StatusBadge', StatusBadge);
+app.component('DashboardPage', DashboardPage);
+app.component('InterfacesPage', InterfacesPage);
+app.component('DataViewerPage', DataViewerPage);
+app.component('SchedulerPage', SchedulerPage);
+app.component('AuditPage', AuditPage);
+app.component('VerifyPage', VerifyPage);
+app.component('SettingsPage', SettingsPage);
+app.component('DonutChart', DonutChart);
+app.component('BarChart', BarChart);
+
+app.mount('#app');
+</script>
+</body>
+</html>

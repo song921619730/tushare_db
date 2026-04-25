@@ -1,0 +1,190 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Interface Last Success Time",
+      "type": "table",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT interface, max(last_success_at) AS last_success, sum(rows) AS total_rows FROM _meta.sync_state FINAL WHERE status = 'done' GROUP BY interface ORDER BY last_success ASC",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": { "type": "auto" },
+            "filterable": true
+          }
+        }
+      },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 0 }
+    },
+    {
+      "id": 2,
+      "title": "Row Count Trend (Last 7 Days)",
+      "type": "timeseries",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "time_series",
+          "rawSql": "SELECT toDate(last_success_at) AS time, sum(rows) AS daily_rows FROM _meta.sync_state FINAL WHERE status = 'done' AND last_success_at > now() - INTERVAL 7 DAY GROUP BY time ORDER BY time",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 10 }
+    },
+    {
+      "id": 3,
+      "title": "Interfaces with No Recent Sync (>7 days)",
+      "type": "table",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT interface, max(last_success_at) AS last_success FROM _meta.sync_state FINAL WHERE status = 'done' GROUP BY interface HAVING max(last_success_at) < now() - INTERVAL 7 DAY ORDER BY last_success ASC",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null }
+            ]
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 10 }
+    },
+    {
+      "id": 4,
+      "title": "Missing Trading Days (Gap Report)",
+      "type": "table",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT 'daily' AS interface, cal_date AS missing_date FROM _meta.trade_cal WHERE is_open = 1 AND cal_date >= '20240101' AND cal_date NOT IN (SELECT DISTINCT trade_date FROM tushare.daily WHERE trade_date >= '20240101') ORDER BY cal_date LIMIT 100",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": { "type": "auto" }
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 }
+    },
+    {
+      "id": 5,
+      "title": "Sync Status by Interface",
+      "type": "bargauge",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT interface, count() AS units FROM _meta.sync_state FINAL GROUP BY interface, status ORDER BY units DESC LIMIT 20",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 }
+    },
+    {
+      "id": 6,
+      "title": "Total Rows per Interface",
+      "type": "bargauge",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT interface, sum(rows) AS total_rows FROM _meta.sync_state FINAL WHERE status = 'done' GROUP BY interface ORDER BY total_rows DESC LIMIT 15",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 26 }
+    },
+    {
+      "id": 7,
+      "title": "Pending / Failed Unit Detail",
+      "type": "table",
+      "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+      "targets": [
+        {
+          "datasource": { "type": "grafana-clickhouse-datasource", "uid": "ClickHouse" },
+          "format": "table",
+          "rawSql": "SELECT interface, scope_key, status, attempts, last_error FROM _meta.sync_state FINAL WHERE status IN ('pending', 'failed', 'partial') ORDER BY status, interface LIMIT 100",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "cellOptions": { "type": "auto" },
+            "filterable": true
+          }
+        }
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 26 }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["tushare", "coverage"],
+  "templating": {
+    "list": []
+  },
+  "time": { "from": "now-7d", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "Data Coverage",
+  "uid": "data_coverage",
+  "version": 1
+}

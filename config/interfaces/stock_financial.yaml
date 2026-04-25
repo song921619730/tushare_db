@@ -1,0 +1,175 @@
+# stock_financial interfaces
+# 10 interfaces in this category
+---
+name: balancesheet
+table: tushare_balancesheet
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+dedupe_key: end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: cashflow
+table: tushare_cashflow
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+dedupe_key: end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: disclosure_date
+table: tushare_disclosure_date
+enabled: true
+priority: P2
+mode: full
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(end_date)
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: dividend
+table: tushare_dividend
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: express
+table: tushare_express
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: fina_audit
+table: tushare_fina_audit
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: fina_indicator
+table: tushare_fina_indicator
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+dedupe_key: end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: fina_mainbz
+table: tushare_fina_mainbz
+enabled: false  # empty sample: Tushare returns no data
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_stock_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, period
+required_params: []
+fields: []
+schema_overrides: {}
+batch: saturday
+---
+name: forecast
+table: tushare_forecast
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: income
+table: tushare_income
+enabled: true
+priority: P0
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: period_loop
+  date_field: end_date
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+dedupe_key: end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
