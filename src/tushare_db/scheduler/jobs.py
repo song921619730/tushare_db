@@ -252,6 +252,34 @@ def run_verify_row_counts(
             ch_client.close()
 
 
+def run_weekly_backup(
+    ch_client: clickhouse_connect.driver.Client | None = None,
+) -> dict:
+    """Weekly ClickHouse native backup of tushare database."""
+    import datetime
+    need_cleanup = ch_client is None
+    if ch_client is None:
+        ch_client = _get_ch_client()
+
+    try:
+        backup_name = f"tushare_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+
+        logger.info("Starting weekly backup", backup_name=backup_name)
+
+        ch_client.command(
+            f"BACKUP DATABASE tushare TO Disk('backups', '{backup_name}')"
+        )
+
+        logger.info("Backup complete", backup_name=backup_name)
+        return {"status": "success", "backup_name": backup_name}
+    except Exception as e:
+        logger.error("Backup failed", error=str(e))
+        return {"status": "failed", "error": str(e)}
+    finally:
+        if need_cleanup:
+            ch_client.close()
+
+
 def _get_ch_client() -> clickhouse_connect.driver.Client:
     """Create ClickHouse client from environment."""
     import os

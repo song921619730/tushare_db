@@ -135,9 +135,19 @@ class TestNormalizeItemsB1:
         )
         assert rows[0][0] == 300000.0
 
-    def test_none_values_skipped(self):
-        """None values should be skipped by normalize_value."""
+    def test_none_values_filled_for_non_nullable_columns(self):
+        """None → 0 for non-nullable numeric columns (prevents clickhouse_connect errors)."""
         column_types = {"total_revenue": "Decimal64(2)"}
+        rows = _normalize_items(
+            ["total_revenue"],
+            [[None]],
+            column_types=column_types,
+        )
+        assert rows[0][0] == 0
+
+    def test_none_preserved_for_nullable_columns(self):
+        """None is preserved for Nullable columns."""
+        column_types = {"total_revenue": "Nullable(Decimal64(2))"}
         rows = _normalize_items(
             ["total_revenue"],
             [[None]],

@@ -5,6 +5,117 @@ from __future__ import annotations
 import unittest
 from unittest.mock import MagicMock, call, patch
 
+import pytest
+
+
+class TestValidateIdent:
+    """Test N5: DDL input validation prevents injection."""
+
+    def test_valid_table_name(self):
+        from tushare_db.schema.evolver import _validate_ident
+        assert _validate_ident("tushare_stock_daily", "table") == "tushare_stock_daily"
+
+    def test_valid_column_name(self):
+        from tushare_db.schema.evolver import _validate_ident
+        assert _validate_ident("trade_date", "column") == "trade_date"
+
+    def test_valid_database_name(self):
+        from tushare_db.schema.evolver import _validate_ident
+        assert _validate_ident("tushare", "database") == "tushare"
+
+    def test_rejects_sql_injection_table(self):
+        from tushare_db.schema.evolver import _validate_ident
+        with pytest.raises(ValueError, match="Invalid table"):
+            _validate_ident("daily; DROP TABLE users", "table")
+
+    def test_rejects_sql_injection_column(self):
+        from tushare_db.schema.evolver import _validate_ident
+        with pytest.raises(ValueError, match="Invalid column"):
+            _validate_ident("col; SELECT * FROM system.users", "column")
+
+    def test_rejects_spaces(self):
+        from tushare_db.schema.evolver import _validate_ident
+        with pytest.raises(ValueError, match="Invalid"):
+            _validate_ident("daily OR 1=1", "table")
+
+    def test_rejects_special_characters(self):
+        from tushare_db.schema.evolver import _validate_ident
+        with pytest.raises(ValueError, match="Invalid"):
+            _validate_ident("../../etc/passwd", "table")
+
+    def test_rejects_leading_digit(self):
+        from tushare_db.schema.evolver import _validate_ident
+        with pytest.raises(ValueError, match="Invalid"):
+            _validate_ident("123table", "table")
+
+
+class TestCacheInvalidation:
+    """Test N3: column type cache TTL and invalidation."""
+
+    def _reset_cache(self):
+        from tushare_db.runner.worker import (
+            _COLUMN_TYPE_CACHE,
+            invalidate_column_cache,
+        )
+        _COLUMN_TYPE_CACHE.clear()
+        return invalidate_column_cache
+
+    def test_invalidate_specific_table(self):
+        invalidate = self._reset_cache()
+        from tushare_db.runner.worker import _COLUMN_TYPE_CACHE
+        _COLUMN_TYPE_CACHE["tushare.daily"] = ({"a": "Int64"}, 9999.0)
+        _COLUMN_TYPE_CACHE["tushare.income"] = ({"b": "String"}, 9999.0)
+
+        invalidate(database="tushare", table="daily")
+
+        assert "tushare.daily" not in _COLUMN_TYPE_CACHE
+        assert "tushare.income" in _COLUMN_TYPE_CACHE
+
+    def test_invalidate_entire_database(self):
+        invalidate = self._reset_cache()
+        from tushare_db.runner.worker import _COLUMN_TYPE_CACHE
+        _COLUMN_TYPE_CACHE["tushare.daily"] = ({"a": "Int64"}, 9999.0)
+        _COLUMN_TYPE_CACHE["tushare.income"] = ({"b": "String"}, 9999.0)
+        _COLUMN_TYPE_CACHE["_meta.sync_state"] = ({"c": "UInt64"}, 9999.0)
+
+        invalidate(database="tushare")
+
+        assert "tushare.daily" not in _COLUMN_TYPE_CACHE
+        assert "tushare.income" not in _COLUMN_TYPE_CACHE
+        assert "_meta.sync_state" in _COLUMN_TYPE_CACHE
+
+    def test_invalidate_all(self):
+        invalidate = self._reset_cache()
+        from tushare_db.runner.worker import _COLUMN_TYPE_CACHE
+        _COLUMN_TYPE_CACHE["tushare.daily"] = ({"a": "Int64"}, 9999.0)
+        _COLUMN_TYPE_CACHE["_meta.sync_state"] = ({"c": "UInt64"}, 9999.0)
+
+        invalidate()
+
+        assert len(_COLUMN_TYPE_CACHE) == 0
+
+    def test_rename_column_invalidates_cache(self):
+        from tushare_db.runner.worker import _COLUMN_TYPE_CACHE
+        from tushare_db.schema.evolver import rename_column
+
+        _COLUMN_TYPE_CACHE["tushare.daily"] = ({"col": "Int64"}, 9999.0)
+
+        client = MagicMock()
+        rename_column(client, "tushare", "daily", "col", "new_col")
+
+        assert "tushare.daily" not in _COLUMN_TYPE_CACHE
+
+    def test_change_type_invalidates_cache(self):
+        from tushare_db.runner.worker import _COLUMN_TYPE_CACHE
+        from tushare_db.schema.evolver import change_type
+
+        _COLUMN_TYPE_CACHE["tushare.daily"] = ({"col": "Float64"}, 9999.0)
+
+        client = MagicMock()
+        change_type(client, "tushare", "daily", "col", "Decimal64(4)")
+
+        assert "tushare.daily" not in _COLUMN_TYPE_CACHE
+
 
 class TestRenameColumn:
     """Test rename_column shadow-table pattern."""

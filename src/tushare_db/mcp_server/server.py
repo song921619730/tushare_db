@@ -1,7 +1,8 @@
-"""MCP Server: stdio and SSE transport for Tushare DB."""
+"""MCP Server: stdio and streamable-http transport for Tushare DB."""
 
 from __future__ import annotations
 
+import uvicorn
 from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP(
@@ -20,4 +21,5 @@ def run_stdio() -> None:
 
 def run_sse(host: str = "0.0.0.0", port: int = 7800) -> None:
     """Run MCP server over SSE transport for LAN access."""
-    mcp.run(transport="sse", host=host, port=port)
+    app = mcp.sse_app()
+    uvicorn.run(app, host=host, port=port)

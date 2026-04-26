@@ -11,6 +11,7 @@ from __future__ import annotations
 import threading
 import time
 from datetime import datetime, timezone
+from unittest.mock import patch
 
 import pytest
 
@@ -127,3 +128,51 @@ class TestHeartbeatThreadLifecycle:
 
         assert first_heartbeat_time is not None
         assert first_heartbeat_time < 0.1, "First heartbeat should fire immediately"
+
+
+class TestIndependentHeartbeatClient:
+    """Test N4: heartbeat uses independent ClickHouse client."""
+
+    def test_new_ch_client_uses_env_vars(self):
+        """_new_ch_client reads from environment, not hardcoded values."""
+        import os
+        from tushare_db.runner.worker import _new_ch_client
+
+        original = os.environ.get("CH_HOST")
+        os.environ["CH_HOST"] = "testhost"
+        os.environ["CH_HTTP_PORT"] = "9999"
+        os.environ["CH_PIPELINE_PASSWORD"] = "testpass"
+
+        try:
+            with patch("tushare_db.runner.worker.clickhouse_connect.get_client") as mock_get:
+                _new_ch_client(database="_meta")
+                mock_get.assert_called_once_with(
+                    host="testhost",
+                    port=9999,
+                    username="pipeline",
+                    password="testpass",
+                    database="_meta",
+                )
+        finally:
+            if original is not None:
+                os.environ["CH_HOST"] = original
+            else:
+                os.environ.pop("CH_HOST", None)
+
+    def test_heartbeat_loop_uses_independent_client(self):
+        """_heartbeat_loop should not share client with execute_unit's ch_client.
+
+        Verified by checking that _heartbeat_loop accepts its own client parameter.
+        """
+        from tushare_db.runner.worker import _heartbeat_loop, _heartbeat_once
+        import inspect
+
+        # _heartbeat_loop should accept client as first parameter
+        sig = inspect.signature(_heartbeat_loop)
+        params = list(sig.parameters.keys())
+        assert "client" in params, "_heartbeat_loop should accept its own client parameter"
+
+        # _heartbeat_once should also accept client
+        sig_once = inspect.signature(_heartbeat_once)
+        params_once = list(sig_once.parameters.keys())
+        assert "client" in params_once, "_heartbeat_once should accept its own client parameter"

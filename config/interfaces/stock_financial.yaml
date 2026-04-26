@@ -1,6 +1,3 @@
-# stock_financial interfaces
-# 10 interfaces in this category
----
 name: balancesheet
 table: tushare_balancesheet
 enabled: true
@@ -138,6 +135,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: saturday
+disabled_reason: empty_sample
 ---
 name: forecast
 table: tushare_forecast

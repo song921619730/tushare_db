@@ -18,14 +18,46 @@ from tushare_db.mcp_server.encoding import encode_response
 logger = structlog.get_logger()
 
 # ---------------------------------------------------------------------------
-# Helpers
+# Helpers: Input validation
 # ---------------------------------------------------------------------------
 
+_TS_CODE_RE = re.compile(r"^[0-9]{6}\.(SH|SZ|BJ)$")
+_DATE_RE = re.compile(r"^[0-9]{8}$")
+_EXCHANGE_RE = re.compile(r"^(SSE|SZSE|BSE|CFFEX|SHFE|DCE|CZCE)$")
 _SELECT_RE = re.compile(r"^\s*(SELECT|WITH|SHOW|DESCRIBE)\s", re.IGNORECASE)
 
 
+def _validate_ts_code(ts_code: str) -> str:
+    if not _TS_CODE_RE.match(ts_code):
+        raise ValueError(f"Invalid ts_code format (expected 000001.SZ): {ts_code!r}")
+    return ts_code
+
+
+def _validate_date(date: str, name: str = "date") -> str:
+    if not _DATE_RE.match(date):
+        raise ValueError(f"Invalid {name} format (expected YYYYMMDD): {date!r}")
+    return date
+
+
+def _validate_exchange(exchange: str) -> str:
+    if not _EXCHANGE_RE.match(exchange):
+        raise ValueError(f"Invalid exchange: {exchange!r}")
+    return exchange
+
+
+def _validate_statement(statement: str) -> str:
+    valid = {"income", "balancesheet", "cashflow", "fina_indicator"}
+    if statement not in valid:
+        raise ValueError(f"Unknown statement type: {statement!r}. Choose from: {sorted(valid)}")
+    return statement
+
+
+# ---------------------------------------------------------------------------
+# Client
+# ---------------------------------------------------------------------------
+
 def _get_client() -> clickhouse_connect.driver.Client:
-    """Get ClickHouse client for MCP queries (HTTP protocol, port 8123)."""
+    """Read-only ClickHouse client via ai_reader (readonly=2 enforced at DB layer)."""
     import clickhouse_connect
 
     return clickhouse_connect.get_client(
@@ -45,7 +77,6 @@ def _rows_to_dicts(result) -> list[dict[str, Any]]:
         d = {}
         for i, col in enumerate(columns):
             val = row[i] if i < len(row) else None
-            # Convert datetime to string for JSON serialization
             if hasattr(val, "isoformat"):
                 val = val.isoformat()
             d[col] = val
@@ -61,6 +92,16 @@ def _safe_query(client: clickhouse_connect.driver.Client, sql: str) -> list[dict
             f"Query must start with one of these, got: {sql[:50]!r}"
         )
     result = client.query(sql)
+    return _rows_to_dicts(result)
+
+
+def _param_query(client: clickhouse_connect.driver.Client, sql: str, params: dict[str, Any]) -> list[dict[str, Any]]:
+    """Execute a parameterized query (prevents SQL injection)."""
+    if not _SELECT_RE.match(sql):
+        raise ValueError(
+            "Only SELECT, WITH, SHOW, DESCRIBE statements are allowed."
+        )
+    result = client.query(sql, parameters=params)
     return _rows_to_dicts(result)
 
 
@@ -89,7 +130,7 @@ def get_ohlcv(
     start_date: str,
     end_date: str,
     adjust: str = "qfq",
-) -> list[dict[str, Any]]:
+) -> dict[str, Any]:
     """Get OHLCV (Open/High/Low/Close/Volume) data for a stock.
 
     Args:
@@ -101,57 +142,65 @@ def get_ohlcv(
     Returns:
         List of OHLCV records with trade_date, open, high, low, close, vol, amount.
     """
+    _validate_ts_code(ts_code)
+    _validate_date(start_date, "start_date")
+    _validate_date(end_date, "end_date")
+
+    valid_adjust = {"qfq", "hfq", "none"}
+    if adjust not in valid_adjust:
+        raise ValueError(f"adjust must be one of {sorted(valid_adjust)}, got {adjust!r}")
+
     client = _get_client()
     try:
+        params = {"ts_code": ts_code, "start_date": start_date, "end_date": end_date}
+
         if adjust == "none":
             sql = (
-                f"SELECT trade_date, open, high, low, close, vol, amount, pct_chg "
-                f"FROM tushare.tushare_stock_daily FINAL "
-                f"WHERE ts_code = '{ts_code}' "
-                f"AND trade_date >= '{start_date}' AND trade_date <= '{end_date}' "
-                f"ORDER BY trade_date"
+                "SELECT trade_date, open, high, low, close, vol, amount, pct_chg "
+                "FROM tushare.tushare_stock_daily FINAL "
+                "WHERE ts_code = %(ts_code)s "
+                "AND trade_date >= %(start_date)s AND trade_date <= %(end_date)s "
+                "ORDER BY trade_date"
             )
         elif adjust == "qfq":
-            # Forward adjust: d.open * per_day_adj / latest_adj
             sql = (
-                f"WITH latest AS ("
-                f"  SELECT adj_factor FROM tushare.tushare_adj_factor FINAL "
-                f"  WHERE ts_code = '{ts_code}' ORDER BY trade_date DESC LIMIT 1"
-                f") "
-                f"SELECT d.trade_date, "
-                f"round(d.open  * af.adj_factor / latest.adj_factor, 4) AS open, "
-                f"round(d.high  * af.adj_factor / latest.adj_factor, 4) AS high, "
-                f"round(d.low   * af.adj_factor / latest.adj_factor, 4) AS low, "
-                f"round(d.close * af.adj_factor / latest.adj_factor, 4) AS close, "
-                f"d.vol, d.amount, d.pct_chg "
-                f"FROM tushare.tushare_stock_daily FINAL d "
-                f"INNER JOIN tushare.tushare_adj_factor FINAL af "
-                f"  ON d.ts_code = af.ts_code AND d.trade_date = af.trade_date "
-                f"CROSS JOIN latest "
-                f"WHERE d.ts_code = '{ts_code}' "
-                f"AND d.trade_date >= '{start_date}' AND d.trade_date <= '{end_date}' "
-                f"ORDER BY d.trade_date"
+                "WITH latest AS ("
+                "  SELECT adj_factor FROM tushare.tushare_adj_factor FINAL "
+                "  WHERE ts_code = %(ts_code)s ORDER BY trade_date DESC LIMIT 1"
+                ") "
+                "SELECT d.trade_date, "
+                "round(d.open  * af.adj_factor / latest.adj_factor, 4) AS open, "
+                "round(d.high  * af.adj_factor / latest.adj_factor, 4) AS high, "
+                "round(d.low   * af.adj_factor / latest.adj_factor, 4) AS low, "
+                "round(d.close * af.adj_factor / latest.adj_factor, 4) AS close, "
+                "d.vol, d.amount, d.pct_chg "
+                "FROM tushare.tushare_stock_daily AS d FINAL "
+                "INNER JOIN tushare.tushare_adj_factor AS af FINAL "
+                "  ON d.ts_code = af.ts_code AND d.trade_date = af.trade_date "
+                "CROSS JOIN latest "
+                "WHERE d.ts_code = %(ts_code)s "
+                "AND d.trade_date >= %(start_date)s AND d.trade_date <= %(end_date)s "
+                "ORDER BY d.trade_date"
             )
         elif adjust == "hfq":
-            # Backward adjust: d.open * per_day_adj
             sql = (
-                f"SELECT d.trade_date, "
-                f"round(d.open  * af.adj_factor, 4) AS open, "
-                f"round(d.high  * af.adj_factor, 4) AS high, "
-                f"round(d.low   * af.adj_factor, 4) AS low, "
-                f"round(d.close * af.adj_factor, 4) AS close, "
-                f"d.vol, d.amount, d.pct_chg "
-                f"FROM tushare.tushare_stock_daily FINAL d "
-                f"INNER JOIN tushare.tushare_adj_factor FINAL af "
-                f"  ON d.ts_code = af.ts_code AND d.trade_date = af.trade_date "
-                f"WHERE d.ts_code = '{ts_code}' "
-                f"AND d.trade_date >= '{start_date}' AND d.trade_date <= '{end_date}' "
-                f"ORDER BY d.trade_date"
+                "SELECT d.trade_date, "
+                "round(d.open  * af.adj_factor, 4) AS open, "
+                "round(d.high  * af.adj_factor, 4) AS high, "
+                "round(d.low   * af.adj_factor, 4) AS low, "
+                "round(d.close * af.adj_factor, 4) AS close, "
+                "d.vol, d.amount, d.pct_chg "
+                "FROM tushare.tushare_stock_daily AS d FINAL "
+                "INNER JOIN tushare.tushare_adj_factor AS af FINAL "
+                "  ON d.ts_code = af.ts_code AND d.trade_date = af.trade_date "
+                "WHERE d.ts_code = %(ts_code)s "
+                "AND d.trade_date >= %(start_date)s AND d.trade_date <= %(end_date)s "
+                "ORDER BY d.trade_date"
             )
         else:
-            raise ValueError(f"adjust must be qfq/hfq/none, got {adjust!r}")
+            raise AssertionError("unreachable")
 
-        return encode_response(_safe_query(client, sql))
+        return encode_response(_param_query(client, sql, params))
     finally:
         client.close()
 
@@ -204,13 +253,19 @@ def describe_table(table: str) -> dict[str, Any]:
     """
     client = _get_client()
     try:
-        # Normalize table name
-        full_name = table if "." in table else f"tushare.{table}"
+        # Normalize table name — only allow tushare.* or _meta.*
+        if "." in table:
+            parts = table.split(".", 1)
+            db_name, tbl_name = parts
+            if db_name not in ("tushare", "_meta"):
+                raise ValueError(f"Only tushare and _meta databases allowed, got {db_name!r}")
+            full_name = table
+        else:
+            db_name, tbl_name = "tushare", table
+            full_name = f"tushare.{table}"
 
         # Get columns
-        col_result = client.query(
-            f"DESCRIBE {full_name}"
-        )
+        col_result = client.query(f"DESCRIBE {full_name}")
         columns = []
         for row in col_result.result_rows:
             columns.append({
@@ -219,14 +274,17 @@ def describe_table(table: str) -> dict[str, Any]:
                 "default": row[2],
             })
 
-        # Get row count
-        count_result = client.query(f"SELECT count() FROM {full_name} FINAL")
-        row_count = int(count_result.result_rows[0][0]) if count_result.result_rows else 0
+        # Get approximate row count from system.parts (fast, no FULL scan)
+        count_result = client.query(
+            "SELECT sum(rows) FROM system.parts "
+            "WHERE database = %(db)s AND table = %(tbl)s AND active = 1",
+            parameters={"db": db_name, "tbl": tbl_name},
+        )
+        row_count = int(count_result.result_rows[0][0] or 0) if count_result.result_rows else 0
 
-        # Get last update time
-        db_name, tbl_name = full_name.split(".")
+        # Get last update version
         last_result = client.query(
-            f"SELECT max(_version) FROM {db_name}.{tbl_name}"
+            f"SELECT max(_version) FROM {full_name}"
         )
         last_update = None
         if last_result.result_rows and last_result.result_rows[0][0]:
@@ -260,6 +318,9 @@ def get_financials(
     Returns:
         Encoded response with financial records.
     """
+    _validate_ts_code(ts_code)
+    _validate_statement(statement)
+
     client = _get_client()
     try:
         table_map = {
@@ -268,17 +329,20 @@ def get_financials(
             "cashflow": "tushare.tushare_cashflow",
             "fina_indicator": "tushare.tushare_fina_indicator",
         }
-        table = table_map.get(statement)
-        if not table:
-            raise ValueError(f"Unknown statement type: {statement}. Choose from: {list(table_map.keys())}")
+        table = table_map[statement]
 
-        sql = f"SELECT * FROM {table} WHERE ts_code = '{ts_code}'"
+        sql = f"SELECT * FROM {table} FINAL WHERE ts_code = %(ts_code)s"
+        params: dict[str, Any] = {"ts_code": ts_code}
+
         if periods:
-            period_list = ", ".join(f"'{p}'" for p in periods)
-            sql += f" AND period IN ({period_list})"
-        sql += " ORDER BY period DESC"
+            for p in periods:
+                _validate_date(p, "period")
+            sql += " AND end_date IN %(periods)s"
+            params["periods"] = tuple(periods)
 
-        return encode_response(_safe_query(client, sql))
+        sql += " ORDER BY end_date DESC"
+
+        return encode_response(_param_query(client, sql, params))
     finally:
         client.close()
 
@@ -299,12 +363,17 @@ def get_index_components(
     """
     client = _get_client()
     try:
-        sql = f"SELECT * FROM tushare.tushare_index_weight WHERE index_code = '{index_code}'"
+        sql = "SELECT * FROM tushare.tushare_index_weight WHERE index_code = %(index_code)s"
+        params: dict[str, Any] = {"index_code": index_code}
+
         if date:
-            sql += f" AND trade_date = '{date}'"
+            _validate_date(date, "date")
+            sql += " AND trade_date = %(date)s"
+            params["date"] = date
+
         sql += " ORDER BY con_code"
 
-        return encode_response(_safe_query(client, sql))
+        return encode_response(_param_query(client, sql, params))
     finally:
         client.close()
 
@@ -325,15 +394,20 @@ def get_moneyflow(
     Returns:
         Encoded response with money flow records.
     """
+    _validate_ts_code(ts_code)
+    _validate_date(start_date, "start_date")
+    _validate_date(end_date, "end_date")
+
     client = _get_client()
     try:
         sql = (
-            f"SELECT * FROM tushare.tushare_moneyflow "
-            f"WHERE ts_code = '{ts_code}' "
-            f"AND trade_date >= '{start_date}' AND trade_date <= '{end_date}' "
-            f"ORDER BY trade_date"
+            "SELECT * FROM tushare.tushare_moneyflow "
+            "WHERE ts_code = %(ts_code)s "
+            "AND trade_date >= %(start_date)s AND trade_date <= %(end_date)s "
+            "ORDER BY trade_date"
         )
-        return encode_response(_safe_query(client, sql))
+        params = {"ts_code": ts_code, "start_date": start_date, "end_date": end_date}
+        return encode_response(_param_query(client, sql, params))
     finally:
         client.close()
 
@@ -354,16 +428,21 @@ def trade_calendar(
     Returns:
         Encoded response with trading days and is_open flag.
     """
+    _validate_date(start_date, "start_date")
+    _validate_date(end_date, "end_date")
+    _validate_exchange(exchange)
+
     client = _get_client()
     try:
         sql = (
-            f"SELECT cal_date, is_open, pre_trade_date "
-            f"FROM _meta.trade_cal "
-            f"WHERE exchange = '{exchange}' "
-            f"AND cal_date >= '{start_date}' AND cal_date <= '{end_date}' "
-            f"ORDER BY cal_date"
+            "SELECT cal_date, is_open, pretrade_date "
+            "FROM _meta.trade_cal "
+            "WHERE exchange = %(exchange)s "
+            "AND cal_date >= %(start_date)s AND cal_date <= %(end_date)s "
+            "ORDER BY cal_date"
         )
-        return encode_response(_safe_query(client, sql))
+        params = {"exchange": exchange, "start_date": start_date, "end_date": end_date}
+        return encode_response(_param_query(client, sql, params))
     finally:
         client.close()
 
@@ -390,18 +469,22 @@ def coverage_report(
         enabled_specs = [s for s in specs if s.enabled]
 
         if priority:
+            valid_priority = {"P0", "P1", "P2", "P3"}
+            if priority.upper() not in valid_priority:
+                raise ValueError(f"Invalid priority: {priority!r}. Choose from: {sorted(valid_priority)}")
             enabled_specs = [s for s in enabled_specs if s.priority == priority.upper()]
         if interface:
             enabled_specs = [s for s in enabled_specs if s.name == interface]
 
         results = []
         for spec in enabled_specs:
-            # Get sync state summary
+            # Parameterized query for sync state
             status_result = client.query(
-                f"SELECT status, count(), sum(rows) "
-                f"FROM _meta.sync_state FINAL "
-                f"WHERE interface = '{spec.name}' "
-                f"GROUP BY status"
+                "SELECT status, count(), sum(rows) "
+                "FROM _meta.sync_state FINAL "
+                "WHERE interface = %(iface)s "
+                "GROUP BY status",
+                parameters={"iface": spec.name},
             )
 
             status_map = {}
@@ -411,8 +494,9 @@ def coverage_report(
                 total_rows += int(row[2] or 0)
 
             last_sync_result = client.query(
-                f"SELECT max(heartbeat_at) FROM _meta.sync_state FINAL "
-                f"WHERE interface = '{spec.name}' AND status = 'done'"
+                "SELECT max(heartbeat_at) FROM _meta.sync_state FINAL "
+                "WHERE interface = %(iface)s AND status = 'done'",
+                parameters={"iface": spec.name},
             )
             last_sync = None
             if last_sync_result.result_rows and last_sync_result.result_rows[0][0]:

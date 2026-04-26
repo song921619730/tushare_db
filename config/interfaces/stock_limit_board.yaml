@@ -1,6 +1,3 @@
-# stock_limit_board interfaces
-# 22 interfaces in this category
----
 name: dc_daily
 table: tushare_dc_daily
 enabled: true
@@ -34,6 +31,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: C
+disabled_reason: empty_sample
 ---
 name: dc_index
 table: tushare_dc_index
@@ -213,6 +211,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: C
+disabled_reason: empty_sample
 ---
 name: tdx_daily
 table: tushare_tdx_daily

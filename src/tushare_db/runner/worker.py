@@ -10,12 +10,13 @@ Each worker:
 
 from __future__ import annotations
 
+import os
 import threading
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any
 
+import clickhouse_connect
 import clickhouse_connect.driver
 import structlog
 
@@ -30,9 +31,12 @@ logger = structlog.get_logger()
 HEARTBEAT_INTERVAL = 30  # seconds
 
 _NOW = datetime(1970, 1, 1, tzinfo=timezone.utc)  # epoch sentinel for last_success_at
+_EPOCH_DATE = datetime(1970, 1, 1).date()  # default for non-nullable Date columns with None
 
-# Per-process cache of column types, keyed by "database.table"
-_COLUMN_TYPE_CACHE: dict[str, dict[str, str]] = {}
+# Per-process cache of column types with TTL, keyed by "database.table"
+_COLUMN_TYPE_CACHE: dict[str, tuple[dict[str, str], float]] = {}
+_CACHE_TTL = 300  # 5 minutes
+_CACHE_LOCK = threading.Lock()
 
 
 def mark_running(
@@ -125,6 +129,69 @@ def mark_failed(
     )
 
 
+def _heartbeat_once(
+    client: clickhouse_connect.driver.Client,
+    unit: WorkUnit,
+    attempt: int,
+) -> None:
+    """Send a single heartbeat row to _meta.sync_state."""
+    version = int(time.time() * 1000)
+    client.insert(
+        table="sync_state",
+        data=[(
+            unit.interface,
+            unit.scope_key,
+            "running",
+            0,
+            _NOW,
+            datetime.now(timezone.utc),
+            attempt,
+            "",
+            version,
+        )],
+        column_names=[
+            "interface", "scope_key", "status", "rows",
+            "last_success_at", "heartbeat_at", "attempts", "last_error", "_version",
+        ],
+        database="_meta",
+    )
+
+
+def _heartbeat_loop(
+    client: clickhouse_connect.driver.Client,
+    unit: WorkUnit,
+    attempt: int,
+    stop_event: threading.Event,
+) -> None:
+    """Background heartbeat using an independent ClickHouse client.
+
+    Sends first heartbeat immediately, then repeats every HEARTBEAT_INTERVAL.
+    """
+    try:
+        _heartbeat_once(client, unit, attempt)
+    except Exception:
+        logger.warning("Heartbeat failed", interface=unit.interface, scope_key=unit.scope_key)
+
+    while not stop_event.is_set():
+        stop_event.wait(HEARTBEAT_INTERVAL)
+        if not stop_event.is_set():
+            try:
+                _heartbeat_once(client, unit, attempt)
+            except Exception:
+                logger.warning("Heartbeat failed", interface=unit.interface, scope_key=unit.scope_key)
+
+
+def _new_ch_client(database: str = "tushare") -> clickhouse_connect.driver.Client:
+    """Create a new ClickHouse client from environment configuration."""
+    return clickhouse_connect.get_client(
+        host=os.environ.get("CH_HOST", "localhost"),
+        port=int(os.environ.get("CH_HTTP_PORT", "8123")),
+        username="pipeline",
+        password=os.environ.get("CH_PIPELINE_PASSWORD", ""),
+        database=database,
+    )
+
+
 def execute_unit(
     unit: WorkUnit,
     tushare_client: TushareClient,
@@ -148,66 +215,20 @@ def execute_unit(
     attempt = unit.retries + 1
     stop_event = threading.Event()
 
-    def _heartbeat_loop() -> None:
-        """Background heartbeat that updates heartbeat_at every HEARTBEAT_INTERVAL.
-
-        Sends first heartbeat immediately so stale detection starts from now.
-        """
-        try:
-            version = int(time.time() * 1000)
-            ch_client.insert(
-                table="sync_state",
-                data=[(
-                    unit.interface,
-                    unit.scope_key,
-                    "running",
-                    0,
-                    _NOW,
-                    datetime.now(timezone.utc),
-                    attempt,
-                    "",
-                    version,
-                )],
-                column_names=[
-                    "interface", "scope_key", "status", "rows",
-                    "last_success_at", "heartbeat_at", "attempts", "last_error", "_version",
-                ],
-                database="_meta",
-            )
-        except Exception:
-            logger.warning("Heartbeat failed", interface=unit.interface, scope_key=unit.scope_key)
-
-        while not stop_event.is_set():
-            stop_event.wait(HEARTBEAT_INTERVAL)
-            if not stop_event.is_set():
-                try:
-                    version = int(time.time() * 1000)
-                    ch_client.insert(
-                        table="sync_state",
-                        data=[(
-                            unit.interface,
-                            unit.scope_key,
-                            "running",
-                            0,
-                            _NOW,
-                            datetime.now(timezone.utc),
-                            attempt,
-                            "",
-                            version,
-                        )],
-                        column_names=[
-                            "interface", "scope_key", "status", "rows",
-                            "last_success_at", "heartbeat_at", "attempts", "last_error", "_version",
-                        ],
-                        database="_meta",
-                    )
-                except Exception:
-                    logger.warning("Heartbeat failed", interface=unit.interface, scope_key=unit.scope_key)
-
-    heartbeat_thread = threading.Thread(target=_heartbeat_loop, daemon=True)
-    heartbeat_thread.start()
+    # N4: Heartbeat uses independent ClickHouse client to avoid
+    # HTTP socket corruption when concurrent with main INSERT.
+    heartbeat_client = _new_ch_client(database="_meta")
 
     try:
+        _heartbeat_once(heartbeat_client, unit, attempt)
+
+        heartbeat_thread = threading.Thread(
+            target=_heartbeat_loop,
+            args=(heartbeat_client, unit, attempt, stop_event),
+            daemon=True,
+        )
+        heartbeat_thread.start()
+
         # Fetch data from Tushare
         api_response = tushare_client.call(
             unit.interface,
@@ -251,7 +272,7 @@ def execute_unit(
     except TushareBizError as e:
         mark_failed(ch_client, unit, str(e), attempt)
         logger.error("Business error", interface=unit.interface, scope_key=unit.scope_key, error=str(e))
-        return -1  # Signal biz error
+        return -1
     except TushareAuthError as e:
         mark_failed(ch_client, unit, str(e), attempt)
         logger.error("Auth error", interface=unit.interface, scope_key=unit.scope_key, error=str(e))
@@ -267,6 +288,27 @@ def execute_unit(
     finally:
         stop_event.set()
         heartbeat_thread.join(timeout=5)
+        heartbeat_client.close()
+
+
+def invalidate_column_cache(database: str | None = None, table: str | None = None) -> None:
+    """Invalidate cached column types after schema evolution.
+
+    Args:
+        database: If set and table is None, invalidate all tables in that database.
+        table: If set with database, invalidate only that specific table.
+        Neither set: clear entire cache.
+    """
+    with _CACHE_LOCK:
+        if database is None:
+            _COLUMN_TYPE_CACHE.clear()
+        elif table is None:
+            prefix = f"{database}."
+            for key in list(_COLUMN_TYPE_CACHE):
+                if key.startswith(prefix):
+                    del _COLUMN_TYPE_CACHE[key]
+        else:
+            _COLUMN_TYPE_CACHE.pop(f"{database}.{table}", None)
 
 
 def _get_column_types(
@@ -274,17 +316,25 @@ def _get_column_types(
     table: str,
     database: str = "tushare",
 ) -> dict[str, str]:
-    """Lazy-load column types for a table; cache per-process."""
+    """Lazy-load column types for a table with TTL-based per-process cache."""
     cache_key = f"{database}.{table}"
-    if cache_key in _COLUMN_TYPE_CACHE:
-        return _COLUMN_TYPE_CACHE[cache_key]
+    now = time.monotonic()
+
+    with _CACHE_LOCK:
+        cached = _COLUMN_TYPE_CACHE.get(cache_key)
+        if cached and cached[1] > now:
+            return cached[0]
 
     result = ch_client.query(
         f"SELECT name, type FROM system.columns "
         f"WHERE database = '{database}' AND table = '{table}'"
     )
     type_map = {row[0]: row[1] for row in result.result_rows}
-    _COLUMN_TYPE_CACHE[cache_key] = type_map
+    expires_at = now + _CACHE_TTL
+
+    with _CACHE_LOCK:
+        _COLUMN_TYPE_CACHE[cache_key] = (type_map, expires_at)
+
     return type_map
 
 
@@ -318,6 +368,33 @@ def _normalize_items(
                 base_type = base_type[len("Nullable("):-1]
             if base_type.startswith("Decimal64"):
                 row[idx] = normalize_value(field_name, base_type, row[idx])
+
+        # 3. Fill None defaults for non-nullable columns (API returns None for some fields)
+        for idx, field_name in enumerate(fields):
+            if idx >= len(row) or row[idx] is not None:
+                continue
+            ch_type = column_types.get(field_name, "")
+            if not ch_type or ch_type.startswith("Nullable(") or ch_type.startswith("LowCardinality"):
+                continue
+            # Non-nullable column with None value → fill sensible default
+            if ch_type == "String":
+                row[idx] = ""
+            elif ch_type.startswith(("Int", "Float", "Decimal")):
+                row[idx] = 0
+            elif ch_type == "Date":
+                row[idx] = _EPOCH_DATE
+
+        # 4. Cast non-string values to string for String/LowCardinality columns
+        for idx, field_name in enumerate(fields):
+            if idx >= len(row) or row[idx] is None:
+                continue
+            ch_type = column_types.get(field_name, "")
+            base_type = ch_type
+            if base_type.startswith("Nullable("):
+                base_type = base_type[len("Nullable("):-1]
+            if base_type == "String" or base_type.startswith("LowCardinality"):
+                if not isinstance(row[idx], str):
+                    row[idx] = str(row[idx])
 
         normalized.append(row)
 

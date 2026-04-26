@@ -1,6 +1,3 @@
-# index interfaces
-# 15 interfaces in this category
----
 name: ci_daily
 table: tushare_ci_daily
 enabled: true
@@ -179,6 +176,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: empty_sample
 ---
 name: index_weekly
 table: tushare_index_weekly

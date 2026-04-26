@@ -6,12 +6,23 @@ use a shadow-table pattern (CREATE → INSERT → RENAME → DROP) for safety.
 
 from __future__ import annotations
 
-import time
+import re
 
 import clickhouse_connect.driver
 import structlog
 
+from tushare_db.runner.worker import invalidate_column_cache
+
 logger = structlog.get_logger()
+
+_IDENT_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
+
+
+def _validate_ident(name: str, kind: str = "identifier") -> str:
+    """Validate a ClickHouse identifier to prevent DDL injection."""
+    if not _IDENT_RE.match(name):
+        raise ValueError(f"Invalid {kind}: {name!r}")
+    return name
 
 
 def get_existing_columns(
@@ -20,6 +31,8 @@ def get_existing_columns(
     table: str,
 ) -> set[str]:
     """Get the set of existing column names for a table."""
+    database = _validate_ident(database, "database")
+    table = _validate_ident(table, "table")
     result = client.command(
         f"SELECT name FROM system.columns WHERE database = '{database}' AND table = '{table}'"
     )
@@ -45,10 +58,13 @@ def evolve_schema(
     Returns:
         List of ALTER statements that were executed.
     """
+    database = _validate_ident(database, "database")
+    table = _validate_ident(table, "table")
     existing = get_existing_columns(client, database, table)
     alterations: list[str] = []
 
     for col_name, col_type in desired_columns:
+        col_name = _validate_ident(col_name, "column")
         if col_name not in existing:
             alter = f"ALTER TABLE {database}.{table} ADD COLUMN IF NOT EXISTS {col_name} {col_type}"
             client.command(alter)
@@ -86,6 +102,10 @@ def rename_column(
         old_name: Current column name.
         new_name: New column name.
     """
+    database = _validate_ident(database, "database")
+    table = _validate_ident(table, "table")
+    old_name = _validate_ident(old_name, "old column")
+    new_name = _validate_ident(new_name, "new column")
     full = f"{database}.{table}"
     shadow = f"{full}_new"
     old = f"{full}_old"
@@ -119,6 +139,8 @@ def rename_column(
         # Cleanup shadow on failure
         client.command(f"DROP TABLE IF EXISTS {shadow}")
         raise
+    finally:
+        invalidate_column_cache(database=database, table=table)
 
 
 def change_type(
@@ -144,6 +166,9 @@ def change_type(
         column: Column name to change.
         new_type: New ClickHouse type (e.g., "Decimal64(4)").
     """
+    database = _validate_ident(database, "database")
+    table = _validate_ident(table, "table")
+    column = _validate_ident(column, "column")
     full = f"{database}.{table}"
     shadow = f"{full}_new"
     old = f"{full}_old"
@@ -177,6 +202,8 @@ def change_type(
         # Cleanup shadow on failure
         client.command(f"DROP TABLE IF EXISTS {shadow}")
         raise
+    finally:
+        invalidate_column_cache(database=database, table=table)
 
 
 def evolve_schema_full(

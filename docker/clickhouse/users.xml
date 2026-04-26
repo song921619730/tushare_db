@@ -10,15 +10,8 @@
             <quota>default</quota>
         </pipeline>
 
-        <!-- AI reader: read-only on tushare.*, LAN-only -->
-        <ai_reader>
-            <password>OqywPPt0uQsWRz8yMfXili1FAaTJiuxG4KdTOaqBPqQ</password>
-            <networks>
-                <host_regexp>192\.168\..*|10\..*|172\.(1[6-9]|2[0-9]|3[0-1])\..*|127\.0\.0\.1</host_regexp>
-            </networks>
-            <profile>ai_reader_profile</profile>
-            <quota>unlimited</quota>
-        </ai_reader>
+        <!-- ai_reader is created via init SQL (002_create_ai_reader.sql)
+             to avoid XML password loading issues. -->
 
         <!-- Grafana user: read-only _meta.* and system.* -->
         <grafana>

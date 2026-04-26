@@ -1,6 +1,3 @@
-# Paid interfaces (enabled: false) — enable when subscribed
-# 45 interfaces requiring additional payment
----
 name: hk_adjfactor
 table: tushare_hk_adjfactor
 enabled: false
@@ -16,6 +13,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_balancesheet
 table: tushare_hk_balancesheet
@@ -32,6 +30,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_basic
 table: tushare_hk_basic
@@ -47,6 +46,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: reference
+disabled_reason: paid_5000
 ---
 name: hk_cashflow
 table: tushare_hk_cashflow
@@ -63,6 +63,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_daily
 table: tushare_hk_daily
@@ -79,6 +80,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_daily_adj
 table: tushare_hk_daily_adj
@@ -95,6 +97,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_fina_indicator
 table: tushare_hk_fina_indicator
@@ -111,6 +114,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_income
 table: tushare_hk_income
@@ -127,6 +131,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_mins
 table: tushare_hk_mins
@@ -143,6 +148,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_tradecal
 table: tushare_hk_tradecal
@@ -158,6 +164,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: reference
+disabled_reason: paid_5000
 ---
 name: rt_hk_k
 table: tushare_rt_hk_k
@@ -174,6 +181,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_dividend
 table: tushare_hk_dividend
@@ -190,6 +198,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_weekly
 table: tushare_hk_weekly
@@ -206,6 +215,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_monthly
 table: tushare_hk_monthly
@@ -222,6 +232,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_moneyflow
 table: tushare_hk_moneyflow
@@ -238,6 +249,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: hk_top10
 table: tushare_hk_top10
@@ -254,6 +266,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_basic
 table: tushare_us_basic
@@ -269,6 +282,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: reference
+disabled_reason: paid_5000
 ---
 name: us_balancesheet
 table: tushare_us_balancesheet
@@ -285,6 +299,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_cashflow
 table: tushare_us_cashflow
@@ -301,6 +316,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_daily
 table: tushare_us_daily
@@ -317,6 +333,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_daily_adj
 table: tushare_us_daily_adj
@@ -333,6 +350,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_fina_indicator
 table: tushare_us_fina_indicator
@@ -349,6 +367,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_income
 table: tushare_us_income
@@ -365,6 +384,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_tradecal
 table: tushare_us_tradecal
@@ -380,6 +400,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: reference
+disabled_reason: paid_5000
 ---
 name: us_adjfactor
 table: tushare_us_adjfactor
@@ -396,6 +417,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_dividend
 table: tushare_us_dividend
@@ -412,6 +434,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_weekly
 table: tushare_us_weekly
@@ -428,6 +451,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_monthly
 table: tushare_us_monthly
@@ -444,6 +468,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_moneyflow
 table: tushare_us_moneyflow
@@ -460,6 +485,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: us_top10
 table: tushare_us_top10
@@ -476,6 +502,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: etf_iopv
 table: tushare_etf_iopv
@@ -492,6 +519,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_etf_k
 table: tushare_rt_etf_k
@@ -508,6 +536,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: ft_mins
 table: tushare_ft_mins
@@ -524,6 +553,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_fut_min
 table: tushare_rt_fut_min
@@ -540,6 +570,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: idx_mins
 table: tushare_idx_mins
@@ -556,6 +587,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_idx_k
 table: tushare_rt_idx_k
@@ -572,6 +604,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_idx_min
 table: tushare_rt_idx_min
@@ -588,6 +621,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_sw_k
 table: tushare_rt_sw_k
@@ -604,6 +638,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: opt_mins
 table: tushare_opt_mins
@@ -620,6 +655,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_min
 table: tushare_rt_min
@@ -636,6 +672,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: rt_k
 table: tushare_rt_k
@@ -652,6 +689,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
+disabled_reason: paid_5000
 ---
 name: cyq_d
 table: tushare_cyq_d
@@ -668,6 +706,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: C
+disabled_reason: paid_5000
 ---
 name: hk_hold_detail
 table: tushare_hk_hold_detail
@@ -684,6 +723,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: C
+disabled_reason: paid_5000
 ---
 name: film_boxoffice
 table: tushare_film_boxoffice
@@ -700,6 +740,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: D
+disabled_reason: paid_5000
 ---
 name: film_daily
 table: tushare_film_daily
@@ -716,3 +757,4 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: D
+disabled_reason: paid_5000

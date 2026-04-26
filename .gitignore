@@ -40,3 +40,4 @@ Thumbs.db
 
 # Claude Code 本地状态
 .claude/settings.local.json
+.claude/worktrees/

@@ -40,3 +40,20 @@ def encode_response(rows: list[dict[str, Any]], threshold: int = 1000) -> dict[s
         "row_count": len(rows),
         "schema": str(table.schema),
     }
+
+
+def decode_response(response: dict[str, Any]) -> list[dict[str, Any]]:
+    """Decode an MCP response back to a list of dicts.
+
+    For JSON responses, parses ``response["content"]`` directly.
+    For Arrow IPC + LZ4 responses, decodes the base64 payload.
+    """
+    if response["encoding"] == "json":
+        return json.loads(response["content"])
+
+    raw = base64.b64decode(response["content"])
+    import lz4.frame
+    decompressed = lz4.frame.decompress(raw)
+    reader = ipc.open_stream(decompressed)
+    table = reader.read_all()
+    return table.to_pylist()

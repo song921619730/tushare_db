@@ -1,6 +1,3 @@
-# tmt interfaces
-# 4 interfaces in this category
----
 name: film_record
 table: tushare_film_record
 enabled: false  # offline: interface not found on Tushare (deprecated)
@@ -17,6 +14,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: D
+disabled_reason: tushare_offline_2024
 ---
 name: teleplay_record
 table: tushare_teleplay_record
@@ -51,6 +49,7 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: D
+disabled_reason: tushare_offline_2024
 ---
 name: tmt_twincomedetail
 table: tushare_tmt_twincomedetail
@@ -68,3 +67,4 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: D
+disabled_reason: tushare_offline_2024

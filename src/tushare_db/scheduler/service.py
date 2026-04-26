@@ -126,6 +126,20 @@ def create_scheduler() -> BlockingScheduler:
         max_instances=1,
     )
 
+    # weekly_backup: 04:00 Sun
+    scheduler.add_job(
+        jobs.run_weekly_backup,
+        trigger="cron",
+        day_of_week="sun",
+        hour=4,
+        minute=0,
+        id="weekly_backup",
+        name="Weekly ClickHouse Backup",
+        misfire_grace_time=3600,
+        coalesce=True,
+        max_instances=1,
+    )
+
     # verify_row_counts: 03:00 daily
     scheduler.add_job(
         jobs.run_verify_row_counts,
