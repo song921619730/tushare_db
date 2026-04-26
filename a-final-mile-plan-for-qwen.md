@@ -54,7 +54,7 @@
 | §10 | LAN 信任 + ai_reader + IP 白名单 | ✅ N1 + readonly=2 + host_regexp | ✅ |
 | §10.3 | MCP 工具 9 个，复权在工具内 | ✅ B4 修复后正确 | ⚠️ **R8 在真数据下未验证** |
 | §10.3 | LZ4 + Arrow IPC 压缩 | ✅ B9/encode_response | ⚠️ MCP 客户端未实测解码 |
-| §11 | 表数 = 185 (182 enabled + 3 元表) | ❌ **实际 169 enabled** | **R11/R12** |
+| §11 | 表数 = 185 (182 enabled + 3 元表) | ❌ **实际 169 enabled → R11 后 174** | **R11/R12 ✅** |
 | §11 | 行数 150-250M | ❌ **当前约 5M 行**（不到 5%） | **R1-R5** |
 | §11 | 增量稳态每日 ≤30 min | ❌ **未在真数据下验证** | **R6** |
 | §风险 | Token 失效自动暂停 + 5 次 401/403 | ⚠️ B12/B16 错误码分类已做 | ⚠️ **R13 未实测告警链路** |
@@ -501,7 +501,9 @@ df = pro.stk_auction(ts_code='000001.SZ', start_date='20240101', end_date='20240
 3. 重跑 `tushare-db sample-apis --only <name>`
 4. 重跑 `tushare-db rebuild-schema --interface <name>`
 
-**预期复活**：7/10（3 个付费的不动）。完成后 enabled = 169 + 7 = **176**，与设计 182 仍差 6（可接受为"Tushare 文档与实际清单差异"）。
+**预期复活**：7/10（3 个付费的不动）。完成后 enabled = 169 + 5 = **174**（stk_auction/tdx_daily 保持禁用），与设计 182 仍差 8（3 下线 + 2 付费 + 3 其他，可接受）。
+
+**状态**：✅ 5 个已复活（dc_hot, index_monthly, moneyflow_ths, moneyflow_ind_ths, moneyflow_cnt_ths, fina_mainbz）。
 
 ---
 
@@ -516,16 +518,18 @@ df = pro.stk_auction(ts_code='000001.SZ', start_date='20240101', end_date='20240
 
 在 `a-ai-ai-tushare-pro-kind-gizmo.md` §11 加一段：
 ```markdown
-> **2026-04-26 更新**：实际 enabled 数量为 169（or R11 完成后为 176）。
+> **2026-04-26 更新**：实际 enabled 数量为 169（R11 完成后为 174）。
 > 13 个偏差来源：
 > - 3 个 Tushare 已下线（film_record / tmt_twincome / tmt_twincomedetail）
 > - 7 个需特殊采样参数（详见 `data/logs/coverage_audit.md`）
+>   - 5 个已复活（dc_hot, index_monthly, moneyflow_ths, moneyflow_ind_ths, moneyflow_cnt_ths, fina_mainbz）
+>   - 2 个保留禁用（stk_auction 付费, tdx_daily 待验证）
 > - 3 个付费接口（升级积分后可启用）
 >
-> 表数 = 172（169 enabled + 3 元表）= 暂时基线；R11 完成后为 179。
+> 表数 = 172（169 enabled + 3 元表）= 暂时基线；R11 完成后为 177。
 ```
 
-并在 `data/logs/progress.md` 末尾记一笔。
+**状态**：✅ 已完成。设计文档 §11 已更新。
 
 ---
 
@@ -699,7 +703,7 @@ watch -n 300 'docker compose exec pipeline-scheduler tushare-db status --interfa
 - `tushare_adj_factor` ≥ 8M 行
 - `tushare_daily_basic` ≥ 8M 行
 - 5 张财务表每张 ≥ 100K 行
-- 至少 169（or R11 后 176）张表非空
+- 至少 169（R11 后 174）张表非空
 
 ✅ **运行稳定性**：
 - 连续 5 个工作日 scheduler 自动增量，0 partial / 0 failed

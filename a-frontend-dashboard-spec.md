@@ -10,16 +10,18 @@
 - 查看 API 调用审计日志
 - 监控同步健康度
 
-## 技术选型
+## 技术选型（已更新为实际实现）
 
-| 维度 | 选择 | 理由 |
-|------|------|------|
-| 交付物 | 单文件 HTML + CDN 资源 | 零构建、零部署，丢到任意静态目录即可运行 |
-| 框架 | Vue 3 (CDN) + Naive UI (CDN) | 组件丰富、类型安全、Dark 模式内置 |
-| 图表 | Apache ECharts (CDN) | 中文友好、时间轴/热力图/仪表盘组件齐全 |
-| 通信 | ClickHouse HTTP 接口 (port 8123) | 直连只读用户，无需额外 API 服务 |
-| 认证 | 嵌入 `ai_reader` 连接串（LAN 内网） | 只读隔离，max_execution_time=30s |
-| 主题 | Dark 模式（数据终端风格） | 长时间盯盘不刺眼 |
+| 维度 | 原始规划 | 实际实现 | 理由 |
+|------|---------|---------|------|
+| 交付物 | 单文件 HTML + CDN 资源 | 单文件 HTML + CDN 资源 ✅ | 零构建、零部署 |
+| 框架 | Vue 3 (CDN) + Naive UI | **React 18 (CDN) + 手写组件** | 无 UI 框架依赖，更轻量 |
+| 图表 | Apache ECharts (CDN) | **SVG 手写**（Donut/Sparkline/KLine） | 零外部图表依赖 |
+| 转译 | 无（Vue CDN 原生） | **Babel Standalone**（浏览器 JSX 转译） | 支持 JSX 语法 |
+| 通信 | ClickHouse HTTP 接口 (port 8123) | 直连 ClickHouse HTTP ✅ | 无 API 中间层 |
+| CORS | 未指定 | **ClickHouse config.xml** | 原生跨域配置，无需 nginx |
+| 认证 | 嵌入 `ai_reader` 连接串 | localStorage 持久化 | 可配置的连接设置 |
+| 主题 | Dark 模式 | Dark 模式 + 7 种调色板 ✅ | 数据终端风格 |
 
 ## 页面结构
 
@@ -52,14 +54,13 @@
 
 **布局：可搜索可排序的数据表格 + 右侧详情抽屉**
 
-- 表格列：接口名 | 分类 | 优先级 | 同步模式 | 表名 | 状态 | 最后同步时间 | 总行数 | 操作
+- 表格列：接口名 | 分类 | 优先级 | 同步模式 | 表名 | 状态 | 最后同步时间 | 总行数
 - 状态徽章：done=绿色, running=蓝色(带loading), partial=橙色, failed=红色, pending=灰色
 - 搜索框：按接口名/表名/分类过滤
-- 批量操作：勾选多个接口 → 触发回补/验证
+- ~~批量操作~~：V1 阶段隐藏（回补/验证操作保持 CLI）
 - 点击行 → 右侧抽屉展开：
   - 该接口最近 10 次 run 记录（时间/行数/耗时/状态）
   - 该接口的 scope_key 列表（按日期或股票代码分区）
-  - 最近一次 run 的 API 调用明细
 
 ### 3. /data — 数据查询与浏览
 
@@ -80,11 +81,11 @@
 
 **布局：时间轴 + 任务卡片**
 
-- 24h 时间轴（06:00 → 03:00），每个 job 在时间轴上标注
+- 24h 时间轴（17:00 → 06:00），9 个 job 在时间轴上标注
 - 任务卡片显示：Job 名称 | 覆盖接口 | 下次执行时间 | 上次执行结果
 - 上次执行状态：绿色对勾 / 橙色部分完成 / 红色失败
-- 手动触发按钮：每个 job 旁边有"立即执行"按钮（需确认弹窗）
 - 历史执行记录：展开查看最近 5 次执行的时间/耗时/单元数
+- V1 阶段不做手动触发，操作保持 CLI
 
 ### 5. /audit — API 调用审计
 
@@ -100,15 +101,14 @@
 
 **布局：验证操作面板 + 结果展示**
 
-- 操作面板：
-  - 行计数验证：选优先级(P0/P1/P2/P3) → 执行
-  - 缺口检测：选接口 + 日期范围 → 执行
-  - 数据抽样对比：选接口 + 日期 → 与 Tushare 在线对比
-  - 全量哈希校验：选表 → 执行
+- 操作面板（V1 只读，操作按钮隐藏）：
+  - ~~行计数验证：选优先级(P0/P1/P2/P3) → 执行~~
+  - ~~缺口检测：选接口 + 日期范围 → 执行~~
+  - ~~数据抽样对比：选接口 + 日期 → 与 Tushare 在线对比~~
+  - ~~全量哈希校验：选表 → 执行~~
 - 结果展示：
-  - 进度条（验证中）
-  - 结果表格：接口/表 | 预期行数 | 实际行数 | 差异 | 状态
-  - 一键修复：发现差异的接口，显示"补洞"按钮
+  - 结果表格：接口/表 | 预期行数 | 实际行数 | 差异 | 状态（从 `_meta` 表查询）
+  - ~~一键修复~~：V2 阶段保留
 
 ### 7. /settings — 连接设置
 
@@ -183,131 +183,104 @@ GROUP BY day ORDER BY day;
 
 ## 与后端交互方式
 
-### 方案 A：直连 ClickHouse HTTP（默认）
+### 方案 A：直连 ClickHouse HTTP（默认，已采用）
 
 ```
 POST http://<host>:8123/?user=ai_reader&password=xxx&database=tushare&default_format=JSONCompact
 Body: SQL query string
 ```
 
-- 优点：零中间层，响应快
+- 优点：零中间层，响应快，无需额外服务
 - 缺点：SQL 注入风险（前端已限制为 SELECT 开头 + 强制 LIMIT）
 - 安全：只读用户，max_execution_time=30s，max_rows_to_read 限额
+- CORS：通过 ClickHouse `config.xml` 配置 `http_options_response` 解决跨域
 
-### 方案 B：通过 MCP Server（扩展）
+### 方案 B：通过 MCP Server（扩展，V2+ 考虑）
 
-如需手动触发回补/更新/验证等操作：
-```
-# MCP 工具调用需单独的后端桥接服务
-# 可后续实现 /api/run-backfill, /api/trigger-verify 等 REST 端点
-```
+如需手动触发回补/更新/验证等写操作，可扩展现有 MCP Server（端口 7800）添加 `backfill`、`verify`、`resume` 等工具。前端通过 SSE 调用。**不新建 REST API**，保持架构简洁。
 
 当前仪表盘以 **只读监控** 为主，手动操作通过 CLI 完成。
 
-## 文件结构
+## 文件结构（已实现）
 
 ```
-F:\AIcoding_space\VsCode\tushare_db\dashboard\
-├── index.html                          # 主入口，Vue 3 单文件应用
-├── assets\
-│   ├── vue.global.prod.js
-│   ├── naive-ui.global.prod.js
-│   └── echarts.min.js
-├── css\
-│   └── dark-theme.css                   # 自定义深色主题覆盖
-└── js\
-    ├── app.js                           # Vue app 入口 + 路由
-    ├── router.js                        # 页面路由定义
-    ├── store.js                         # Pinia 状态管理（连接配置、数据缓存）
-    ├── api\
-    │   └── clickhouse.js                # ClickHouse HTTP 查询封装
-    ├── views\
-    │   ├── Dashboard.vue
-    │   ├── Interfaces.vue
-    │   ├── DataViewer.vue
-    │   ├── Scheduler.vue
-    │   ├── Audit.vue
-    │   ├── Verify.vue
-    │   └── Settings.vue
-    └── components\
-        ├── StatusBadge.vue              # 状态徽章组件
-        ├── ProgressCard.vue             # 进度卡片
-        ├── OHLCVChart.vue               # K 线图组件
-        └── RunTimeline.vue              # 运行时间轴
+F:\AIcoding_space\VsCode\tushare_db_web\
+├── index.html                          # 主入口，CDN 引入 React 18 + Babel Standalone
+├── app.jsx                             # 应用壳 + 侧边栏导航 + 页面路由
+├── data.jsx                            # 全局数据定义（Mock，V1 需替换为 CH 查询）
+├── theme.jsx                           # 主题系统 + CSS 变量 + 调色板
+├── tweaks-panel.jsx                    # 开发用调整面板
+├── charts.jsx                          # 图表组件（Donut/Sparkline/TrendLine/ProgressBar）
+├── dashboard.jsx                       # 页面 01：总览仪表盘
+├── interfaces.jsx                      # 页面 02：接口同步状态 + 详情抽屉
+├── data-viewer.jsx                     # 页面 03：SQL 查询 + 结果表 + K 线图
+├── scheduler.jsx                       # 页面 04：调度任务监控
+├── audit.jsx                           # 页面 05：API 调用审计
+├── verify.jsx                          # 页面 06：验证诊断
+├── settings.jsx                        # 页面 07：连接设置
+├── PRD.md                              # 产品需求文档
+├── ADAPTATION_ISSUES.md               # 适配问题清单
+└── uploads/                            # 设计预览截图
 ```
+
+**技术栈变更**：原始 spec 规划为 Vue 3 + Naive UI，实际实现改为 React 18 + 纯手写组件（无 UI 框架），保持零构建、CDN 引入的轻量架构。
 
 ## 启动方式
 
 ```bash
-# 方式 1：直接双击 index.html 在浏览器打开（需处理 CORS）
+# 前提：ClickHouse config.xml 已配置 CORS 响应头
+# 方式 1：双击 index.html 在浏览器直接打开
 # 方式 2：使用 Python 内置 HTTP 服务器
-python -m http.server 8080 --directory dashboard/
-# 方式 3：集成到 docker-compose，增加 nginx 服务
+python -m http.server 3000 --directory tushare_db_web/
 ```
 
-推荐方式 3，在 docker-compose.yml 中添加：
-
-```yaml
-  dashboard:
-    image: nginx:alpine
-    ports: ["3000:80"]
-    volumes:
-      - ./dashboard:/usr/share/nginx/html:ro
-      - ./dashboard/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on: [clickhouse]
+CORS 配置：在 ClickHouse `config.xml` 中添加：
+```xml
+<http_options_response>
+    <header><name>Access-Control-Allow-Origin</name><value>*</value></header>
+    <header><name>Access-Control-Allow-Methods</name><value>POST, GET, OPTIONS</value></header>
+    <header><name>Access-Control-Allow-Headers</name><value>Authorization, Content-Type</value></header>
+</http_options_response>
 ```
 
-nginx.conf 配置反向代理处理 CORS：
-
-```nginx
-server {
-    listen 80;
-    root /usr/share/nginx/html;
-    index index.html;
-
-    location /api/ch/ {
-        proxy_pass http://clickhouse:8123/;
-        proxy_set_header Authorization "";
-    }
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-}
-```
+前端直连 `http://localhost:8123`，不需要 nginx 反向代理，不需要额外中间服务。
 
 ## AI 实现提示词
 
-> 复制以下内容发送给 AI 来生成前端代码：
+> 复制以下内容发送给 AI 来生成前端代码（V1 数据对接阶段）：
 
 ---
 
-你是一个资深前端工程师。请为 Tushare DB（一个基于 ClickHouse 的 A 股数据仓库）构建一个管理仪表盘。
+你是一个资深前端工程师。请为 Tushare DB（一个基于 ClickHouse 的 A 股数据仓库）实现前端仪表盘的数据对接。
 
 **项目上下文：**
 - 后端是 Python 数据管道，数据存入 ClickHouse
 - 元数据存储在 `_meta.sync_state`（同步状态）、`_meta.sync_runs`（运行记录）、`_meta.api_calls`（API 审计）三张表
 - 业务数据在 `tushare` 数据库，182+ 张表
-- 只读用户 `ai_reader`，通过 HTTP port 8123 访问
+- 只读用户 `ai_reader`，通过 HTTP port 8123 直连访问，**无 REST API 中间层**
+- 全部在本机运行，前端通过 CORS 直连 ClickHouse
 
 **技术要求：**
-- 单文件 HTML + CDN 引入 Vue 3 + Naive UI + ECharts
-- Dark 主题，数据终端风格
-- 通过 ClickHouse HTTP JSON 接口查询数据
+- React 18（CDN）+ Babel Standalone（浏览器 JSX 转译）
+- 零构建，无打包工具
+- 通过 ClickHouse HTTP JSON 接口直连查询数据
 - 所有查询只读，前端自动注入 LIMIT 5000
 
 **页面列表：**
 1. Dashboard — 总览卡片（表数/行数/存储/健康度环形图/今日进度/告警）
-2. Interfaces — 接口同步状态表格（搜索/排序/批量操作/详情抽屉）
+2. Interfaces — 接口同步状态表格（搜索/排序/详情抽屉）
 3. Data Viewer — SQL 查询 + 结果表格 + K 线图可视化
-4. Scheduler — 调度任务时间轴 + 手动触发
+4. Scheduler — 调度任务时间轴（9 个 Job）
 5. Audit — API 调用审计（热力图 + 明细表）
 6. Verify — 验证操作面板 + 结果展示
-7. Settings — ClickHouse 连接配置
+7. Settings — ClickHouse 连接配置（localStorage 持久化）
 
-**详细设计文档：** 见同目录 `a-frontend-dashboard-spec.md`
+**架构原则：**
+- 前端直连 ClickHouse，不需要 REST API
+- CORS 通过 ClickHouse config.xml 配置解决
+- V1 阶段只做只读监控，操作保持 CLI
 
-请从 `index.html` 开始，逐步实现各页面组件。优先完成 Dashboard 和 Interfaces 两个核心页面。
+**已有代码：** UI 组件已全部完成（13 个 JSX 文件），但全部使用 Mock 假数据。需要将 `data.jsx` 中的 mock 数据替换为真实 ClickHouse 查询。
 
 ---
 
@@ -315,8 +288,8 @@ server {
 
 | 阶段 | 功能 |
 |------|------|
-| V1 | 只读监控仪表盘（本设计） |
-| V2 | 手动触发回补/验证（需 API 桥接服务） |
+| V1 | 只读监控仪表盘（本设计）— 直连 ClickHouse，无 API 中间层 |
+| V2 | 手动触发回补/验证（扩展 MCP Server，不建 REST API）|
 | V3 | 实时日志流（WebSocket 连接 pipeline 日志） |
 | V4 | 数据导出（CSV/Parquet 下载） |
 | V5 | 用户认证 + 多用户权限管理 |

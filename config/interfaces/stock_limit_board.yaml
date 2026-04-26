@@ -17,7 +17,7 @@ batch: C
 ---
 name: dc_hot
 table: tushare_dc_hot
-enabled: false  # empty sample: Tushare returns no data
+enabled: true
 priority: P2
 mode: incremental
 freq_bucket: special
@@ -31,7 +31,6 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: C
-disabled_reason: empty_sample
 ---
 name: dc_index
 table: tushare_dc_index

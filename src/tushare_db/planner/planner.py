@@ -58,18 +58,18 @@ def get_trade_dates(
 def get_symbols(
     client: clickhouse_connect.driver.Client,
 ) -> list[str]:
-    """Get all active stock symbols from trade_cal/stock_basic."""
+    """Get all active stock symbols from stock_basic."""
     # Check if stock_basic exists before querying
     result = client.query(
         "SELECT count() FROM system.tables "
-        "WHERE database = 'tushare' AND name = 'stock_basic'"
+        "WHERE database = 'tushare' AND name = 'tushare_stock_basic'"
     )
     if int(result.result_rows[0][0]) == 0:
         logger.warning("stock_basic table not found, returning empty symbol list")
         return []
 
     result = client.query(
-        "SELECT ts_code FROM tushare.stock_basic WHERE list_status = 'L' ORDER BY ts_code"
+        "SELECT ts_code FROM tushare.tushare_stock_basic ORDER BY ts_code"
     )
     return [row[0] for row in result.result_rows]
 

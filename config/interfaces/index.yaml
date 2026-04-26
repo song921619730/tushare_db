@@ -162,7 +162,7 @@ batch: reference
 ---
 name: index_monthly
 table: tushare_index_monthly
-enabled: false  # empty sample: Tushare returns no data
+enabled: true
 priority: P1
 mode: incremental
 freq_bucket: special
@@ -176,7 +176,6 @@ required_params: []
 fields: []
 schema_overrides: {}
 batch: A
-disabled_reason: empty_sample
 ---
 name: index_weekly
 table: tushare_index_weekly

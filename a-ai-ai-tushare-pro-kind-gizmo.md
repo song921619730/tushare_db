@@ -408,12 +408,21 @@ New-NetFirewallRule -DisplayName "MCP-LAN" -Direction Inbound -LocalPort 7800 -P
 `Tushare_DB_Web/index.html` 嵌入 `ai_reader` 密码即明文。**评估**：(a) 仅在 LAN 内分发，配合 `host_regexp` 已隔离外网；(b) 该用户只读、零写权限，最坏情况是数据被读取（公开市场数据，非敏感）。**接受此风险**，不引入额外 OAuth。生产化时改为前端调用本地代理（mcp-serve）由其转发查询。
 
 ### 11. 规模预估
-- 表数 = **185**（182 enabled + 3 元表）；付费 45 接口仅注册 spec，enable 时按需建表
-- 行数 150–250M
+- 表数 = **172**（169 enabled + 3 元表）；付费 45 接口仅注册 spec，enable 时按需建表
+- 行数 ~10M（2026-04-26 迁移后基线），目标 150–250M
 - 压缩 10–25 GB，未压缩 80–200 GB；规划 **80 GB 余量**（保留三倍峰值缓冲，避免长跑撑爆）
 - P0+P1 回补 12–18h（不含长尾，475/285 rpm 95% 利用率下）；per_symbol_period 长尾 **~7.85h/接口**（4 接口顺序 ~31h）；首次全量 48–60h
 - ClickHouse 容器 mem limit 12GB；host 16GB RAM 下限
-- 增量稳态：每日 A/B/C/D 四批次合计 ≤30 min（仅当日新增 trade_date）
+- 增量稳态：每日 A/B/C/D 四批次合计 ≤30 min（仅当日新增 trade_date）— ⚠️ 未实测
+
+> **2026-04-26 更新**：原始设计 182 enabled，实际 169 enabled。13 个偏差来源：
+> - 3 个 Tushare 已下线（film_record / tmt_twincome / tmt_twincomedetail）
+> - 7 个需特殊采样参数（`empty_sample`：20240102 采样无数据，但后续日期有数据）
+>   - 已复活 5 个：dc_hot, index_monthly, moneyflow_ths, moneyflow_ind_ths, moneyflow_cnt_ths, fina_mainbz
+>   - 保留 2 个：stk_auction（付费接口）、tdx_daily（仍需验证）
+> - 3 个付费接口（升级积分后可启用）
+>
+> 当前基线：表数 = 172（169 enabled + 3 元表）。R11 完成后 = 174 enabled + 3 元表 = 177。
 
 ## 风险与缓解
 
