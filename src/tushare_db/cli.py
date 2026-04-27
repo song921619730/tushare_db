@@ -473,6 +473,7 @@ def backfill(
 ) -> None:
     """Backfill historical data for specified interfaces."""
     from tushare_db.runner.backfill import select_specs, run_backfill
+    from tushare_db.runner.verify_hook import make_verify_hook
 
     specs = select_specs(layer=layer, priority=priority, interface=interface, backfill_all=backfill_all)
     if not specs:
@@ -482,8 +483,10 @@ def backfill(
     ch_client = _get_ch_native()
     tushare_client = _get_tushare_client()
 
+    verify_hook = make_verify_hook()
+
     try:
-        summary = run_backfill(specs, tushare_client, ch_client, start_date=from_date, end_date=to_date)
+        summary = run_backfill(specs, tushare_client, ch_client, start_date=from_date, end_date=to_date, verify_hook=verify_hook)
         click.echo(
             f"Backfill complete: {summary['done']}/{summary['total']} done, "
             f"{summary['failed']} failed"

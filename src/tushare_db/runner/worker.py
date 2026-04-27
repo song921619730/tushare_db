@@ -1,11 +1,12 @@
-"""Worker: execute a single work unit with heartbeat tracking.
+"""Worker: execute a single work unit with heartbeat tracking and optional verification hook.
 
 Each worker:
 1. Marks unit as 'running' in _meta.sync_state with initial heartbeat
 2. Fetches data from Tushare API
 3. Writes to ClickHouse
-4. Updates _meta.sync_state to 'done'
-5. Heartbeats every 30s during execution
+4. Runs verify hook (if provided) — retries up to 2 times on failure
+5. Updates _meta.sync_state to 'done'
+6. Heartbeats every 30s during execution
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import os
 import threading
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 
 import clickhouse_connect
@@ -27,6 +29,13 @@ from tushare_db.sink.clickhouse_sink import insert_with_version
 from tushare_db.schema.type_map import normalize_value
 
 logger = structlog.get_logger()
+
+# Verify hook signature: (ch_client, unit, rows_written) -> bool
+# Returns True if verification passes, False triggers retry.
+VerifyHook = Callable[
+    ["clickhouse_connect.driver.Client", WorkUnit, int],
+    bool,
+]
 
 HEARTBEAT_INTERVAL = 30  # seconds
 
@@ -181,6 +190,38 @@ def _heartbeat_loop(
                 logger.warning("Heartbeat failed", interface=unit.interface, scope_key=unit.scope_key)
 
 
+def _delete_written_rows(
+    ch_client: clickhouse_connect.driver.Client,
+    table: str,
+    params: dict,
+) -> None:
+    """Delete rows for a unit's scope so a verify-retry starts clean."""
+    conditions = []
+    if "ts_code" in params:
+        conditions.append(f"ts_code = '{params['ts_code']}'")
+    for date_key in ("trade_date", "end_date", "ann_date"):
+        if date_key in params:
+            val = params[date_key]
+            if isinstance(val, str) and len(val) == 8 and val.isdigit():
+                conditions.append(f"{date_key} = '{val[:4]}-{val[4:6]}-{val[6:]}'")
+            else:
+                conditions.append(f"{date_key} = '{val}'")
+            break
+    if "period" in params:
+        period = params["period"]
+        if isinstance(period, str) and len(period) == 8:
+            conditions.append(
+                f"toYYYYMM(end_date) = {int(period[:4]) * 100 + int(period[4:6])}"
+            )
+
+    where = " AND ".join(conditions) if conditions else "1=0"
+    if where and where != "1=0":
+        try:
+            ch_client.command(f"ALTER TABLE {table} DELETE WHERE {where}")
+        except Exception:
+            logger.debug("Cleanup delete skipped", table=table)
+
+
 def _new_ch_client(database: str = "tushare") -> clickhouse_connect.driver.Client:
     """Create a new ClickHouse client from environment configuration."""
     return clickhouse_connect.get_client(
@@ -197,8 +238,14 @@ def execute_unit(
     tushare_client: TushareClient,
     ch_client: clickhouse_connect.driver.Client,
     run_id: uuid.UUID,
+    verify_hook: VerifyHook | None = None,
 ) -> int:
     """Execute a single work unit end-to-end.
+
+    Args:
+        verify_hook: Optional callback(ch_client, unit, rows_written) -> bool.
+            Called after data is written. Returns False to trigger retry
+            (re-fetch + re-write, up to 2 additional attempts).
 
     Returns:
         Number of rows written.
@@ -229,45 +276,73 @@ def execute_unit(
         )
         heartbeat_thread.start()
 
-        # Fetch data from Tushare
-        api_response = tushare_client.call(
-            unit.interface,
-            bucket=unit.bucket,
-            **unit.params,
-        )
+        # Fetch + write with optional verify-retry loop
+        max_verify_retries = 2 if verify_hook else 0
+        for retry in range(1 + max_verify_retries):
+            api_response = tushare_client.call(
+                unit.interface,
+                bucket=unit.bucket,
+                **unit.params,
+            )
 
-        # Parse response
-        fields = api_response.get("data", {}).get("fields", [])
-        items = api_response.get("data", {}).get("items", [])
+            # Parse response
+            fields = api_response.get("data", {}).get("fields", [])
+            items = api_response.get("data", {}).get("items", [])
 
-        if not items:
-            logger.warning("Empty response", interface=unit.interface, scope_key=unit.scope_key)
-            mark_done(ch_client, unit, 0, attempt)
-            return 0
+            if not items:
+                logger.warning("Empty response", interface=unit.interface, scope_key=unit.scope_key)
+                mark_done(ch_client, unit, 0, attempt)
+                return 0
 
-        # Normalize: dates + 万元→元 + 万份→份
-        column_types = _get_column_types(ch_client, unit.table)
-        normalized_items = _normalize_items(fields, items, column_types=column_types)
+            # Normalize: dates + 万元→元 + 万份→份
+            column_types = _get_column_types(ch_client, unit.table)
+            normalized_items = _normalize_items(fields, items, column_types=column_types)
 
-        # Write to ClickHouse
-        insert_with_version(
-            ch_client,
-            table=unit.table,
-            columns=fields,
-            rows=normalized_items,
-        )
+            # Write to ClickHouse
+            insert_with_version(
+                ch_client,
+                table=unit.table,
+                columns=fields,
+                rows=normalized_items,
+            )
 
-        rows_written = len(normalized_items)
-        mark_done(ch_client, unit, rows_written, attempt)
+            rows_written = len(normalized_items)
 
-        logger.info(
-            "Unit complete",
-            interface=unit.interface,
-            scope_key=unit.scope_key,
-            rows=rows_written,
-        )
+            # Verify hook — retry if verification fails
+            if verify_hook is not None:
+                if not verify_hook(ch_client, unit, rows_written):
+                    if retry < max_verify_retries:
+                        logger.warning(
+                            "Verify failed, retrying fetch",
+                            interface=unit.interface,
+                            scope_key=unit.scope_key,
+                            attempt=retry + 1,
+                        )
+                        # Delete the just-written rows so retry starts clean
+                        _delete_written_rows(ch_client, unit.table, unit.params)
+                        continue
+                    else:
+                        logger.error(
+                            "Verify failed after all retries",
+                            interface=unit.interface,
+                            scope_key=unit.scope_key,
+                        )
+                        mark_failed(ch_client, unit, "verify_failed", attempt)
+                        return -5
+                # Hook passed — data is good
+            else:
+                # No verify hook — mark done and exit
+                mark_done(ch_client, unit, rows_written, attempt)
+                logger.info(
+                    "Unit complete",
+                    interface=unit.interface,
+                    scope_key=unit.scope_key,
+                    rows=rows_written,
+                )
+                return rows_written
 
-        return rows_written
+        # Should not reach here (all verify retries exhausted)
+        return -5
 
     except TushareBizError as e:
         mark_failed(ch_client, unit, str(e), attempt)

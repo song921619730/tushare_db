@@ -17,6 +17,7 @@ from tushare_db.config.models import InterfaceSpec
 from tushare_db.core.tushare_client import TushareClient
 from tushare_db.planner.planner import get_trade_dates, plan_units
 from tushare_db.runner.executor import execute_batch
+from tushare_db.runner.verify_hook import make_verify_hook
 
 logger = structlog.get_logger()
 
@@ -123,6 +124,7 @@ def run_incremental(
 
         _, done_count, failed_count = execute_batch(
             units, tushare_client, ch_client, run_id=run_id,
+            verify_hook=make_verify_hook(),
         )
         total_done += done_count
         total_failed += failed_count

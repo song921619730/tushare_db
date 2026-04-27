@@ -13,6 +13,7 @@ from tushare_db.config.models import InterfaceSpec
 from tushare_db.core.tushare_client import TushareClient
 from tushare_db.planner.planner import plan_units
 from tushare_db.runner.executor import execute_batch
+from tushare_db.runner.worker import VerifyHook
 
 logger = structlog.get_logger()
 
@@ -69,6 +70,7 @@ def run_backfill(
     ch_client: clickhouse_connect.driver.Client,
     start_date: str | None = None,
     end_date: str | None = None,
+    verify_hook: VerifyHook | None = None,
 ) -> dict:
     """Execute backfill for given specs. Returns summary dict."""
     run_id = uuid.uuid4()
@@ -84,7 +86,7 @@ def run_backfill(
 
         logger.info("Backfilling interface", interface=spec.name, units=len(units))
         _, done_count, failed_count = execute_batch(
-            units, tushare_client, ch_client, run_id=run_id,
+            units, tushare_client, ch_client, run_id=run_id, verify_hook=verify_hook,
         )
         total_units += len(units)
         total_done += done_count

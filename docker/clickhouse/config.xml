@@ -12,4 +12,12 @@
         <allowed_disk>backups</allowed_disk>
         <allowed_path>/var/lib/clickhouse/backups/</allowed_path>
     </backups>
+
+    <!-- CORS: allow browser direct access via HTTP interface -->
+    <http_options_response>
+        <header>Access-Control-Allow-Origin: *</header>
+        <header>Access-Control-Allow-Methods: POST, GET, OPTIONS</header>
+        <header>Access-Control-Allow-Headers: Content-Type, Authorization</header>
+        <header>Access-Control-Max-Age: 86400</header>
+    </http_options_response>
 </clickhouse>
