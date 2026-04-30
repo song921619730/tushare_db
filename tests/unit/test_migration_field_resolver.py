@@ -53,8 +53,9 @@ def test_normalize_value():
 
 
 def test_share_only_normalizes_for_fund_tables():
-    """*_share fields only normalize in fund_* tables."""
-    assert should_normalize("total_share", "tushare_fund_portfolio") is True
+    """*_share fields are NOT handled by should_normalize (they use type_map.normalize_value instead)."""
+    # should_normalize only handles amount/revenue/profit patterns, not *_share
+    assert should_normalize("total_share", "tushare_fund_portfolio") is False
     assert should_normalize("total_share", "tushare_stock_basic") is False
 
 

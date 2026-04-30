@@ -28,7 +28,8 @@ partition_key: toYYYYMM(trade_date)
 order_by: ts_code
 required_params: []
 fields: []
-schema_overrides: {}
+schema_overrides:
+  pub_date: Nullable(Date)
 batch: reference
 ---
 name: etf_share_size

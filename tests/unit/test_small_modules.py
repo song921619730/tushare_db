@@ -207,6 +207,8 @@ class TestGetNativeClient:
                 username="pipeline",
                 password="",
                 database="tushare",
+                connect_timeout=10,
+                send_receive_timeout=300,
             )
 
     def test_custom_params(self):
@@ -222,6 +224,8 @@ class TestGetNativeClient:
                 username="pipeline",
                 password="",
                 database="_meta",
+                connect_timeout=10,
+                send_receive_timeout=300,
             )
 
 

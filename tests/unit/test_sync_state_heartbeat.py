@@ -152,6 +152,8 @@ class TestIndependentHeartbeatClient:
                     username="pipeline",
                     password="testpass",
                     database="_meta",
+                    connect_timeout=10,
+                    send_receive_timeout=300,
                 )
         finally:
             if original is not None:

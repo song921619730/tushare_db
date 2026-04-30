@@ -16,7 +16,7 @@ import threading
 import time
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import clickhouse_connect
 import clickhouse_connect.driver
@@ -27,6 +27,7 @@ from tushare_db.core.tushare_client import TushareClient
 from tushare_db.core.errors import TushareBizError, TushareAuthError, TushareError
 from tushare_db.sink.clickhouse_sink import insert_with_version
 from tushare_db.schema.type_map import normalize_value
+from tushare_db.schema.evolver import evolve_schema, parse_missing_columns
 
 logger = structlog.get_logger()
 
@@ -230,6 +231,8 @@ def _new_ch_client(database: str = "tushare") -> clickhouse_connect.driver.Clien
         username="pipeline",
         password=os.environ.get("CH_PIPELINE_PASSWORD", ""),
         database=database,
+        connect_timeout=10,
+        send_receive_timeout=300,
     )
 
 
@@ -265,6 +268,7 @@ def execute_unit(
     # N4: Heartbeat uses independent ClickHouse client to avoid
     # HTTP socket corruption when concurrent with main INSERT.
     heartbeat_client = _new_ch_client(database="_meta")
+    heartbeat_thread: threading.Thread | None = None
 
     try:
         _heartbeat_once(heartbeat_client, unit, attempt)
@@ -298,12 +302,13 @@ def execute_unit(
             column_types = _get_column_types(ch_client, unit.table)
             normalized_items = _normalize_items(fields, items, column_types=column_types)
 
-            # Write to ClickHouse
-            insert_with_version(
+            # Write to ClickHouse with auto schema evolution on missing columns
+            _insert_with_evolve(
                 ch_client,
                 table=unit.table,
                 columns=fields,
                 rows=normalized_items,
+                raw_items=items,
             )
 
             rows_written = len(normalized_items)
@@ -330,6 +335,14 @@ def execute_unit(
                         mark_failed(ch_client, unit, "verify_failed", attempt)
                         return -5
                 # Hook passed — data is good
+                mark_done(ch_client, unit, rows_written, attempt)
+                logger.info(
+                    "Unit complete",
+                    interface=unit.interface,
+                    scope_key=unit.scope_key,
+                    rows=rows_written,
+                )
+                return rows_written
             else:
                 # No verify hook — mark done and exit
                 mark_done(ch_client, unit, rows_written, attempt)
@@ -362,7 +375,8 @@ def execute_unit(
         return -4
     finally:
         stop_event.set()
-        heartbeat_thread.join(timeout=5)
+        if heartbeat_thread is not None:
+            heartbeat_thread.join(timeout=5)
         heartbeat_client.close()
 
 
@@ -413,6 +427,41 @@ def _get_column_types(
     return type_map
 
 
+def _insert_with_evolve(
+    ch_client: clickhouse_connect.driver.Client,
+    table: str,
+    columns: list[str],
+    rows: list[list],
+    raw_items: list[list],
+) -> None:
+    """Write to ClickHouse with automatic schema evolution on missing columns."""
+    try:
+        insert_with_version(
+            ch_client,
+            table=table,
+            columns=columns,
+            rows=rows,
+        )
+    except Exception as insert_err:
+        missing = parse_missing_columns(str(insert_err))
+        if not missing:
+            raise
+        logger.warning("Auto-evolving schema", table=table, missing=missing)
+        # Infer types from sample rows; fallback to Nullable(String)
+        desired = [(c, "Nullable(String)") for c in missing]
+        evolve_schema(ch_client, database="tushare", table=table, desired_columns=desired)
+        invalidate_column_cache(database="tushare", table=table)
+        # Re-normalize with updated column types + retry
+        column_types = _get_column_types(ch_client, table)
+        normalized = _normalize_items(columns, raw_items, column_types=column_types)
+        insert_with_version(
+            ch_client,
+            table=table,
+            columns=columns,
+            rows=normalized,
+        )
+
+
 def _normalize_items(
     fields: list[str],
     items: list[list],
@@ -420,18 +469,94 @@ def _normalize_items(
 ) -> list[list]:
     """Normalize values: dates + 万元→元 + 万份→份."""
     normalized = []
-    date_indices = [i for i, f in enumerate(fields) if "date" in f.lower() or "ann_date" in f.lower()]
     column_types = column_types or {}
+
+    # Build indices for Date/DateTime columns from column_types (more accurate than name heuristic)
+    date_type_indices: set[int] = set()
+    datetime_type_indices: set[int] = set()
+    for idx, field_name in enumerate(fields):
+        ch_type = column_types.get(field_name, "")
+        base_type = ch_type
+        if base_type.startswith("Nullable("):
+            base_type = base_type[len("Nullable("):-1]
+        if base_type == "Date":
+            date_type_indices.add(idx)
+        elif base_type in ("DateTime", "DateTime64"):
+            datetime_type_indices.add(idx)
+
+    # Also use name heuristic as fallback (for tables where column_types isn't populated yet)
+    name_date_indices = {i for i, f in enumerate(fields) if "date" in f.lower()}
+
+    # Combined: type-based + name-based, excluding DateTime columns
+    # (name heuristic would incorrectly catch DateTime columns like trade_date)
+    all_date_indices = date_type_indices | (name_date_indices - datetime_type_indices)
 
     for item in items:
         row = list(item)
 
-        # 1. Date normalization
-        for idx in date_indices:
-            if idx < len(row) and row[idx] and isinstance(row[idx], str):
-                val = row[idx].strip()
+        # 1. Date normalization — handle YYYYMMDD, YYYYMM, YYYY, YYYY-MM-DD, YYYY/MM/DD formats
+        for idx in all_date_indices:
+            if idx >= len(row):
+                continue
+            val = row[idx]
+            if val is None:
+                continue
+            if isinstance(val, str):
+                val = val.strip()
+                if not val:
+                    row[idx] = None
+                    continue
+                try:
+                    row[idx] = _parse_date_string(val)
+                except (ValueError, TypeError):
+                    row[idx] = None
+            elif isinstance(val, datetime) and date_type_indices and idx in date_type_indices:
+                row[idx] = val.date()
+
+        # 1b. DateTime normalization — convert string dates / date objects to datetime for DateTime columns
+        for idx in datetime_type_indices:
+            if idx >= len(row) or row[idx] is None:
+                continue
+            val = row[idx]
+            # Convert date → datetime (can happen when name heuristic fires before type info is known)
+            if isinstance(val, date) and not isinstance(val, datetime):
+                row[idx] = datetime(val.year, val.month, val.day)
+                continue
+            if not isinstance(val, str):
+                continue
+            val = val.strip()
+            try:
                 if len(val) == 8 and val.isdigit():
-                    row[idx] = datetime.strptime(val, "%Y%m%d").date()
+                    row[idx] = datetime.strptime(val, "%Y%m%d")
+                elif "-" in val[:10]:
+                    row[idx] = datetime.strptime(val[:19], "%Y-%m-%d %H:%M:%S")
+                elif "/" in val[:10]:
+                    row[idx] = datetime.strptime(val[:19], "%Y/%m/%d %H:%M:%S")
+                elif "T" in val:
+                    row[idx] = datetime.fromisoformat(val.replace("Z", "+00:00"))
+            except ValueError:
+                pass
+
+        # 1c. Cap dates before ClickHouse epoch (1970-01-01)
+        # ClickHouse Date stores days since epoch as UInt16 (0–65535), cannot represent pre-1970 dates.
+        for idx in all_date_indices:
+            if idx >= len(row) or row[idx] is None:
+                continue
+            val = row[idx]
+            if isinstance(val, datetime):
+                if val.year < 1970:
+                    ch_type = column_types.get(fields[idx], "")
+                    if ch_type.startswith("Nullable("):
+                        row[idx] = None
+                    else:
+                        row[idx] = datetime(1970, 1, 1)
+            elif isinstance(val, date) and not isinstance(val, datetime):
+                if val.year < 1970:
+                    ch_type = column_types.get(fields[idx], "")
+                    if ch_type.startswith("Nullable("):
+                        row[idx] = None
+                    else:
+                        row[idx] = _EPOCH_DATE
 
         # 2. 万元/万份 normalization for Decimal64 columns
         for idx, field_name in enumerate(fields):
@@ -444,19 +569,30 @@ def _normalize_items(
             if base_type.startswith("Decimal64"):
                 row[idx] = normalize_value(field_name, base_type, row[idx])
 
-        # 3. Fill None defaults for non-nullable columns (API returns None for some fields)
+        # 3. Fill None/empty defaults for non-nullable columns (API returns None/empty for some fields)
         for idx, field_name in enumerate(fields):
-            if idx >= len(row) or row[idx] is not None:
+            if idx >= len(row):
                 continue
+            val = row[idx]
             ch_type = column_types.get(field_name, "")
-            if not ch_type or ch_type.startswith("Nullable(") or ch_type.startswith("LowCardinality"):
+            if not ch_type or ch_type.startswith("Nullable("):
                 continue
-            # Non-nullable column with None value → fill sensible default
-            if ch_type == "String":
+            # Treat empty strings and whitespace as None for typed columns
+            if isinstance(val, str) and not val.strip():
+                row[idx] = None
+                val = None
+            if val is not None:
+                continue
+            # Unwrap LowCardinality to determine base type for default value
+            base_type = ch_type
+            if base_type.startswith("LowCardinality("):
+                base_type = base_type[len("LowCardinality("):-1]
+            # Non-nullable column with None/empty value → fill sensible default
+            if base_type == "String":
                 row[idx] = ""
-            elif ch_type.startswith(("Int", "Float", "Decimal")):
+            elif base_type.startswith(("Int", "Float", "UInt", "Decimal")):
                 row[idx] = 0
-            elif ch_type == "Date":
+            elif base_type == "Date":
                 row[idx] = _EPOCH_DATE
 
         # 4. Cast non-string values to string for String/LowCardinality columns
@@ -474,3 +610,26 @@ def _normalize_items(
         normalized.append(row)
 
     return normalized
+
+
+def _parse_date_string(val: str) -> datetime.date:
+    """Parse a date string in various formats: YYYYMMDD, YYYYMM, YYYY, YYYY-MM-DD, YYYY/MM/DD, etc."""
+    val = val.strip()
+    if not val or val.lower() in {"-", "null", "none", "nan", "0000-00-00", "00000000"}:
+        raise ValueError("empty/sentinel date string")
+
+    if len(val) == 4 and val.isdigit():
+        # YYYY → January 1st of that year
+        return datetime(int(val), 1, 1).date()
+    elif len(val) == 6 and val.isdigit():
+        # YYYYMM → 1st of that month
+        return datetime.strptime(val, "%Y%m").date()
+    elif len(val) == 8 and val.isdigit():
+        return datetime.strptime(val, "%Y%m%d").date()
+    elif len(val) >= 10:
+        # Try YYYY-MM-DD, YYYY/MM/DD, YYYY-MM-DD HH:MM:SS, YYYY/MM/DD HH:MM:SS
+        clean = val[:10].replace("-", "").replace("/", "")
+        if len(clean) >= 8 and clean[:8].isdigit():
+            return datetime.strptime(clean[:8], "%Y%m%d").date()
+
+    raise ValueError(f"unrecognized date format: {val}")

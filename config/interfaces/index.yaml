@@ -3,7 +3,7 @@ table: tushare_ci_daily
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -20,7 +20,7 @@ table: tushare_ci_index_member
 enabled: true
 priority: P2
 mode: full
-freq_bucket: special
+freq_bucket: normal
 fetch_strategy:
   kind: full_once
 partition_key: toYYYYMM(trade_date)
@@ -35,7 +35,7 @@ table: tushare_daily_info
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -52,7 +52,7 @@ table: tushare_idx_factor_pro
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -76,7 +76,8 @@ partition_key: toYYYYMM(trade_date)
 order_by: ts_code
 required_params: []
 fields: []
-schema_overrides: {}
+schema_overrides:
+  base_date: Nullable(Date)
 batch: reference
 ---
 name: index_classify
@@ -84,7 +85,7 @@ table: tushare_index_classify
 enabled: true
 priority: P1
 mode: full
-freq_bucket: special
+freq_bucket: normal
 fetch_strategy:
   kind: full_once
 partition_key: toYYYYMM(trade_date)
@@ -99,11 +100,12 @@ table: tushare_index_daily
 enabled: true
 priority: P0
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
+  kind: per_symbol
   date_field: trade_date
+  symbol_source: tushare_index_basic
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
@@ -116,7 +118,7 @@ table: tushare_index_dailybasic
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -133,7 +135,7 @@ table: tushare_index_global
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -150,7 +152,7 @@ table: tushare_index_member_all
 enabled: true
 priority: P2
 mode: full
-freq_bucket: special
+freq_bucket: normal
 fetch_strategy:
   kind: full_once
 partition_key: toYYYYMM(trade_date)
@@ -165,7 +167,7 @@ table: tushare_index_monthly
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -182,7 +184,7 @@ table: tushare_index_weekly
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -199,12 +201,13 @@ table: tushare_index_weight
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: monthly_window
+  kind: date_loop
+  date_field: trade_date
 partition_key: toYYYYMM(trade_date)
-order_by: ts_code, cal_date
+order_by: index_code, con_code, trade_date
 required_params: []
 fields: []
 schema_overrides: {}
@@ -215,7 +218,7 @@ table: tushare_sw_daily
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -232,7 +235,7 @@ table: tushare_sz_daily_info
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop

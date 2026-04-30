@@ -3,7 +3,7 @@ table: tushare_moneyflow
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: offset_paging

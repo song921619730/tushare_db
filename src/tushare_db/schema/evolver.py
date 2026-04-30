@@ -11,8 +11,6 @@ import re
 import clickhouse_connect.driver
 import structlog
 
-from tushare_db.runner.worker import invalidate_column_cache
-
 logger = structlog.get_logger()
 
 _IDENT_RE = re.compile(r"^[a-zA-Z_][a-zA-Z0-9_]*$")
@@ -23,6 +21,30 @@ def _validate_ident(name: str, kind: str = "identifier") -> str:
     if not _IDENT_RE.match(name):
         raise ValueError(f"Invalid {kind}: {name!r}")
     return name
+
+
+def parse_missing_columns(err_msg: str) -> list[str]:
+    """Extract missing column names from a ClickHouse error message.
+
+    Handles: "Unrecognized column 'foo'", "Missing columns: 'foo' 'bar'",
+    "There is no column with name 'foo'".
+    """
+    if not err_msg:
+        return []
+    result: list[str] = []
+
+    # "Missing columns: 'a' 'b' 'c'" — extract all quoted identifiers
+    m = re.search(r"Missing columns:\s*(.*)", err_msg)
+    if m:
+        rest = m.group(1)
+        result.extend(re.findall(r"'([A-Za-z_][A-Za-z0-9_]*)'", rest))
+        return list(dict.fromkeys(result))
+
+    # "Unrecognized column 'foo'" or "There is no column with name 'foo'"
+    m = re.search(r"(?:Unrecognized column|There is no column with name)\s*['\"`]?([A-Za-z_][A-Za-z0-9_]*)", err_msg)
+    if m:
+        result.append(m.group(1))
+    return result
 
 
 def get_existing_columns(
@@ -73,6 +95,9 @@ def evolve_schema(
 
     if alterations:
         logger.info("Schema evolved", table=table, added=len(alterations))
+        # Invalidate column type cache after schema change
+        from tushare_db.runner.worker import invalidate_column_cache
+        invalidate_column_cache(database=database, table=table)
     else:
         logger.debug("Schema up to date", table=table)
 
@@ -140,6 +165,7 @@ def rename_column(
         client.command(f"DROP TABLE IF EXISTS {shadow}")
         raise
     finally:
+        from tushare_db.runner.worker import invalidate_column_cache
         invalidate_column_cache(database=database, table=table)
 
 
@@ -203,6 +229,7 @@ def change_type(
         client.command(f"DROP TABLE IF EXISTS {shadow}")
         raise
     finally:
+        from tushare_db.runner.worker import invalidate_column_cache
         invalidate_column_cache(database=database, table=table)
 
 

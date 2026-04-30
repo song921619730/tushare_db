@@ -5,6 +5,8 @@ Features:
 - tenacity retry with exponential backoff for 429/500/502/503/504/timeout
 - 429 triggers full-bucket cooldown (60s)
 - 401/403/404 raise TushareAuthError or TushareBizError immediately (no retry)
+- Connection recycling every 1500 requests to avoid HTTP/2 stream ID exhaustion
+  (last_stream_id:1999 errors on long-running workers with special-bucket APIs)
 """
 
 from __future__ import annotations
@@ -12,12 +14,13 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import threading
 import time
 from typing import Any
 
 import httpx
 import structlog
-from httpx import Limits
+from httpx import Limits, RemoteProtocolError, NetworkError
 from tenacity import (
     retry,
     retry_if_exception_type,
@@ -39,20 +42,41 @@ class TushareClient:
 
     BASE_URL = "https://api.tushare.pro"
 
+    # Recycle connections after this many requests to avoid HTTP/2 stream ID exhaustion.
+    # HTTP/2 max stream ID is 2^31-1, but Tushare's server appears to cap at ~2000 per connection.
+    _MAX_REQUESTS_PER_CONN = 1500
+
     def __init__(
         self,
         token: str,
         limiter: DualRateLimiter | None = None,
-        timeout: float = 10.0,
+        timeout: float | httpx.Timeout = httpx.Timeout(connect=15, read=60, write=15, pool=10),
     ) -> None:
         self._token = token
         self._limiter = limiter or DualRateLimiter()
         self._timeout = timeout
-        self._client = httpx.Client(
+        self._request_count = 0
+        self._client = self._new_client()
+        self._lock = threading.Lock()
+
+    def _new_client(self) -> httpx.Client:
+        return httpx.Client(
             http2=True,
-            timeout=httpx.Timeout(timeout),
+            timeout=self._timeout,
             limits=Limits(max_connections=20, max_keepalive_connections=20),
         )
+
+    def _maybe_recycle(self) -> None:
+        """Close and recreate the httpx client to reset HTTP/2 stream ID counter."""
+        with self._lock:
+            self._request_count += 1
+            if self._request_count >= self._MAX_REQUESTS_PER_CONN:
+                try:
+                    self._client.close()
+                except Exception:
+                    pass
+                self._request_count = 0
+                self._client = self._new_client()
 
     def close(self) -> None:
         self._client.close()
@@ -65,12 +89,16 @@ class TushareClient:
 
     def _make_request(self, interface: str, **params: Any) -> dict[str, Any]:
         """Make a single API call to Tushare."""
+        self._maybe_recycle()
         payload = {
             "api_name": interface,
             "token": self._token,
             "params": params,
         }
-        resp = self._client.post(self.BASE_URL, json=payload)
+        try:
+            resp = self._client.post(self.BASE_URL, json=payload)
+        except (RemoteProtocolError, NetworkError) as e:
+            raise TushareTransientError(f"Network error for {interface}: {e}") from e
 
         if resp.status_code == 429:
             raise TushareRateLimitError(f"Rate limit on {interface}")
@@ -94,7 +122,7 @@ class TushareClient:
         self,
         interface: str,
         bucket: str = "normal",
-        timeout: float = 30.0,
+        timeout: float = 120.0,
         **params: Any,
     ) -> dict[str, Any]:
         """Call Tushare API with rate limiting and retry.
@@ -102,7 +130,7 @@ class TushareClient:
         Args:
             interface: Tushare API name (e.g., 'daily', 'income').
             bucket: 'normal' or 'special' rate limit bucket.
-            timeout: Max seconds to wait for rate limiter token.
+            timeout: Max seconds to wait for rate limiter token (default 120s).
             **params: API parameters (e.g., ts_code='000001.SZ', start_date='20240101').
 
         Returns:
