@@ -1,6 +1,7 @@
 # forex interfaces
 # 2 interfaces in this category
 ---
+
 name: fx_daily
 table: tushare_fx_daily
 enabled: true
@@ -18,9 +19,10 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: fx_obasic
 table: tushare_fx_obasic
-enabled: true
+enabled: false  # disabled: API returns 0 rows
 priority: P3
 mode: full
 freq_bucket: normal

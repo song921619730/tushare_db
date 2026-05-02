@@ -44,6 +44,7 @@ def build_scope_key(interface: str, strategy: str, **kwargs: str) -> str:
         date_loop:            {interface}:{trade_date:YYYYMMDD}
         period_loop:          {interface}:{period:YYYYMMDD}
         monthly_window:       {interface}:{ym:YYYYMM}
+        per_symbol:           {interface}:{ts_code}
         per_symbol_period:    {interface}:{ts_code}:{period:YYYYMMDD}
         offset_paging:        {interface}:{date}:{offset:08d}
     """
@@ -55,6 +56,8 @@ def build_scope_key(interface: str, strategy: str, **kwargs: str) -> str:
         return f"{interface}:{kwargs['period']}"
     if strategy == "monthly_window":
         return f"{interface}:{kwargs['ym']}"
+    if strategy == "per_symbol":
+        return f"{interface}:{kwargs['ts_code']}"
     if strategy == "per_symbol_period":
         return f"{interface}:{kwargs['ts_code']}:{kwargs['period']}"
     if strategy == "offset_paging":
@@ -146,6 +149,37 @@ def generate_monthly_window_units(
                 table=table,
                 scope_key=scope_key,
                 params={"month": ym},
+                bucket=bucket,
+            )
+        )
+    return units
+
+
+def generate_per_symbol_units(
+    interface: str,
+    bucket: str,
+    symbols: list[str],
+    start_date: str = "20200101",
+    end_date: str | None = None,
+    table: str = "",
+) -> list[WorkUnit]:
+    """Generate work units for per-symbol fetch (one call per stock, returns all data).
+
+    Used for APIs that don't support period/date filtering — each unit fetches
+    the entire history for one symbol.
+    """
+    if end_date is None:
+        end_date = datetime.now().strftime("%Y%m%d")
+
+    units = []
+    for symbol in symbols:
+        scope_key = build_scope_key(interface, "per_symbol", ts_code=symbol)
+        units.append(
+            WorkUnit(
+                interface=interface,
+                table=table,
+                scope_key=scope_key,
+                params={"ts_code": symbol},
                 bucket=bucket,
             )
         )

@@ -11,12 +11,15 @@ class FetchStrategy(BaseModel):
     """Defines how data is fetched from Tushare."""
 
     kind: str = Field(
-        description="full_once|date_loop|period_loop|monthly_window|per_symbol_period|offset_paging"
+        description="full_once|date_loop|period_loop|monthly_window|per_symbol|per_symbol_period|offset_paging"
     )
     date_field: str | None = Field(default=None, description="trade_date|end_date|cal_date")
     step: int | None = Field(default=None, description="Days per fetch for date_loop")
     symbol_source: str | None = Field(
         default=None, description="Source table for ts_code list (per_symbol_period)"
+    )
+    static_params: dict[str, str] | None = Field(
+        default=None, description="Static params merged into every unit (e.g., freq=W)"
     )
 
 
@@ -42,7 +45,7 @@ class InterfaceSpec(BaseModel):
 
     @property
     def is_per_symbol(self) -> bool:
-        return self.fetch_strategy.kind == "per_symbol_period"
+        return self.fetch_strategy.kind in ("per_symbol", "per_symbol_period")
 
     @property
     def is_date_loop(self) -> bool:

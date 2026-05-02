@@ -1,9 +1,10 @@
 # macro interfaces
 # 22 interfaces in this category
 ---
+
 name: bo_cinema
 table: tushare_bo_cinema
-enabled: true
+enabled: false  # disabled: API deprecated by Tushare
 priority: P3
 mode: incremental
 freq_bucket: normal
@@ -18,9 +19,10 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: bo_daily
 table: tushare_bo_daily
-enabled: true
+enabled: false  # disabled: API deprecated by Tushare
 priority: P3
 mode: incremental
 freq_bucket: normal
@@ -35,9 +37,10 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: bo_monthly
 table: tushare_bo_monthly
-enabled: true
+enabled: false  # disabled: API deprecated by Tushare
 priority: P3
 mode: incremental
 freq_bucket: normal
@@ -52,9 +55,10 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: bo_weekly
 table: tushare_bo_weekly
-enabled: true
+enabled: false  # disabled: API deprecated by Tushare
 priority: P3
 mode: incremental
 freq_bucket: normal
@@ -69,6 +73,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: cn_cpi
 table: tushare_cn_cpi
 enabled: true
@@ -86,6 +91,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: cn_gdp
 table: tushare_cn_gdp
 enabled: true
@@ -103,6 +109,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: cn_m
 table: tushare_cn_m
 enabled: true
@@ -120,6 +127,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: cn_pmi
 table: tushare_cn_pmi
 enabled: true
@@ -137,6 +145,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: cn_ppi
 table: tushare_cn_ppi
 enabled: true
@@ -154,9 +163,10 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: gz_index
 table: tushare_gz_index
-enabled: true
+enabled: false  # disabled: Tushare rate limit 200/min, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal
@@ -171,6 +181,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: hibor
 table: tushare_hibor
 enabled: true
@@ -188,6 +199,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: libor
 table: tushare_libor
 enabled: true
@@ -205,23 +217,25 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: sf_month
 table: tushare_sf_month
-enabled: true
+enabled: false  # disabled: Tushare rate limit 100/min, backfill always fails
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: month
+partition_key: tuple()
+order_by: month
 required_params: []
 fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: shibor
 table: tushare_shibor
 enabled: true
@@ -239,6 +253,7 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: shibor_lpr
 table: tushare_shibor_lpr
 enabled: true
@@ -256,9 +271,10 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: shibor_quote
 table: tushare_shibor_quote
-enabled: true
+enabled: false  # disabled: API only returns latest daily quotes, not historical batch
 priority: P3
 mode: incremental
 freq_bucket: normal
@@ -273,94 +289,100 @@ fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: us_tbr
 table: tushare_us_tbr
-enabled: true
+enabled: false  # disabled: Tushare rate limit, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: date
+partition_key: toYYYYMM(date)
+order_by: date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: us_tltr
 table: tushare_us_tltr
-enabled: true
+enabled: false  # disabled: Tushare rate limit, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: date
+partition_key: toYYYYMM(date)
+order_by: date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: us_trltr
 table: tushare_us_trltr
-enabled: true
+enabled: false  # disabled: Tushare rate limit, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: date
+partition_key: toYYYYMM(date)
+order_by: date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: us_trycr
 table: tushare_us_trycr
-enabled: true
+enabled: false  # disabled: Tushare rate limit, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: date
+partition_key: toYYYYMM(date)
+order_by: date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: us_tycr
 table: tushare_us_tycr
-enabled: true
+enabled: false  # disabled: Tushare rate limit, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: date
+partition_key: toYYYYMM(date)
+order_by: date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: D
 ---
+
 name: wz_index
 table: tushare_wz_index
-enabled: true
+enabled: false  # disabled: Tushare rate limit 200/min, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal

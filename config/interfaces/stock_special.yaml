@@ -6,10 +6,10 @@ table: tushare_broker_recommend
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
+  kind: monthly_window
   date_field: trade_date
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
@@ -23,7 +23,7 @@ table: tushare_ccass_hold
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -32,7 +32,8 @@ partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
 fields: []
-schema_overrides: {}
+schema_overrides:
+  shareholding: Nullable(String)
 batch: C
 ---
 name: ccass_hold_detail
@@ -40,7 +41,7 @@ table: tushare_ccass_hold_detail
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -60,7 +61,8 @@ mode: incremental
 freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
+  kind: per_symbol
+  symbol_source: tushare_stock_basic
   date_field: trade_date
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
@@ -74,10 +76,10 @@ table: tushare_cyq_perf
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
+  kind: per_symbol
   date_field: trade_date
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
@@ -91,7 +93,7 @@ table: tushare_hk_hold
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -107,14 +109,13 @@ name: report_rc
 table: tushare_report_rc
 enabled: true
 priority: P2
-mode: incremental
-freq_bucket: special
+mode: full
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  kind: full_once
+partition_key: toYYYYMM(report_date)
+order_by: ts_code, report_date
 required_params: []
 fields: []
 schema_overrides: {}
@@ -125,7 +126,7 @@ table: tushare_stk_ah_comparison
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -142,7 +143,7 @@ table: tushare_stk_auction_c
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -159,7 +160,7 @@ table: tushare_stk_auction_o
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -176,7 +177,7 @@ table: tushare_stk_factor_pro
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -193,7 +194,7 @@ table: tushare_stk_nineturn
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20230101'
 fetch_strategy:
   kind: date_loop
@@ -207,10 +208,10 @@ batch: C
 ---
 name: stk_surv
 table: tushare_stk_surv
-enabled: true
+enabled: false  # disabled: API returns 0 rows for all dates
 priority: P2
 mode: incremental
-freq_bucket: special
+freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop

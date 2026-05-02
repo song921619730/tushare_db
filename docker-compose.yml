@@ -86,6 +86,13 @@ services:
     depends_on:
       clickhouse: {condition: service_healthy}
 
+  web:
+    build: ../tushare_db_web
+    restart: unless-stopped
+    ports: ["8888:8888"]
+    depends_on:
+      clickhouse: {condition: service_healthy}
+
 volumes:
   clickhouse_data:
   grafana_data:

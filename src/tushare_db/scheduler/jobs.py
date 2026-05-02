@@ -79,7 +79,7 @@ def run_batch(
             return {"skipped": True, "reason": "non_trading_day"}
 
         result = run_incremental(ch_client, tushare_client, batch=batch)
-        logger.info("Batch complete", batch=batch, **result)
+        logger.info("Batch complete", **result)
         return result
     finally:
         if need_cleanup:

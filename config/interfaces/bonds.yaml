@@ -1,6 +1,7 @@
 # bonds interfaces
 # 15 interfaces in this category
 ---
+
 name: bc_bestotcqt
 table: tushare_bc_bestotcqt
 enabled: false  # empty sample: Tushare returns no data
@@ -18,6 +19,7 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: bc_otcqt
 table: tushare_bc_otcqt
 enabled: false  # empty sample: Tushare returns no data
@@ -35,16 +37,15 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: bond_blk
 table: tushare_bond_blk
 enabled: true
 priority: P3
-mode: incremental
-freq_bucket: normal
-start_date: '20200101'
+mode: full
+freq_bucket: special
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
+  kind: full_once
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
@@ -52,16 +53,15 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: bond_blk_detail
 table: tushare_bond_blk_detail
 enabled: true
 priority: P3
-mode: incremental
-freq_bucket: normal
-start_date: '20200101'
+mode: full
+freq_bucket: special
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
+  kind: full_once
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
@@ -69,12 +69,13 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: cb_basic
 table: tushare_cb_basic
 enabled: true
 priority: P3
-mode: incremental
-freq_bucket: normal
+mode: full
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
   kind: full_once
@@ -85,29 +86,31 @@ fields: []
 schema_overrides: {}
 batch: reference
 ---
+
 name: cb_call
 table: tushare_cb_call
-enabled: true
+enabled: false  # disabled: API only returns latest N records, not historical batch
 priority: P3
 mode: incremental
-freq_bucket: normal
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  kind: per_symbol
+  symbol_source: tushare_cb_basic
+partition_key: toYYYYMM(ann_date)
+order_by: ts_code, ann_date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: cb_daily
 table: tushare_cb_daily
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: normal
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
@@ -119,6 +122,7 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: cb_factor_pro
 table: tushare_cb_factor_pro
 enabled: true
@@ -136,33 +140,35 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: cb_issue
 table: tushare_cb_issue
-enabled: true
+enabled: false  # disabled: API only returns latest N records, not historical batch
 priority: P2
 mode: incremental
-freq_bucket: normal
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  kind: per_symbol
+  symbol_source: tushare_cb_basic
+partition_key: toYYYYMM(ann_date)
+order_by: ts_code, ann_date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: cb_price_chg
 table: tushare_cb_price_chg
-enabled: true
+enabled: false
 priority: P3
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
+  kind: per_symbol
+  symbol_source: tushare_cb_basic
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
@@ -170,12 +176,13 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: cb_rate
 table: tushare_cb_rate
 enabled: true
 priority: P3
 mode: full
-freq_bucket: normal
+freq_bucket: special
 fetch_strategy:
   kind: full_once
 partition_key: toYYYYMM(trade_date)
@@ -185,16 +192,17 @@ fields: []
 schema_overrides: {}
 batch: reference
 ---
+
 name: cb_share
 table: tushare_cb_share
-enabled: true
+enabled: false  # disabled: per_symbol strategy returns empty for all 5511 symbols
 priority: P2
 mode: incremental
-freq_bucket: normal
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
+  kind: per_symbol
+  symbol_source: tushare_cb_basic
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
@@ -202,23 +210,24 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: eco_cal
 table: tushare_eco_cal
-enabled: true
+enabled: false  # disabled: API only returns latest N records, not historical batch
 priority: P3
-mode: incremental
+mode: full
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  kind: full_once
+partition_key: toYYYYMM(date)
+order_by: date
 required_params: []
 fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: repo_daily
 table: tushare_repo_daily
 enabled: true
@@ -236,9 +245,10 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: yc_cb
 table: tushare_yc_cb
-enabled: true
+enabled: false  # disabled: Tushare rate limit 20/min, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal

@@ -14,6 +14,7 @@ from tushare_db.planner.strategies import (
     generate_date_loop_units,
     generate_period_loop_units,
     generate_monthly_window_units,
+    generate_per_symbol_units,
     generate_per_symbol_period_units,
     generate_offset_paging_units,
 )
@@ -57,19 +58,19 @@ def get_trade_dates(
 
 def get_symbols(
     client: clickhouse_connect.driver.Client,
+    symbol_table: str = "tushare_stock_basic",
 ) -> list[str]:
-    """Get all active stock symbols from stock_basic."""
-    # Check if stock_basic exists before querying
+    """Get all active stock symbols from a symbol source table."""
     result = client.query(
         "SELECT count() FROM system.tables "
-        "WHERE database = 'tushare' AND name = 'tushare_stock_basic'"
+        "WHERE database = 'tushare' AND name = '" + symbol_table + "'"
     )
     if int(result.result_rows[0][0]) == 0:
-        logger.warning("stock_basic table not found, returning empty symbol list")
+        logger.warning(symbol_table + " table not found, returning empty symbol list")
         return []
 
     result = client.query(
-        "SELECT ts_code FROM tushare.tushare_stock_basic ORDER BY ts_code"
+        "SELECT ts_code FROM tushare." + symbol_table + " ORDER BY ts_code"
     )
     return [row[0] for row in result.result_rows]
 
@@ -96,7 +97,8 @@ def plan_units(
     table = spec.table
 
     if strategy == "full_once":
-        return generate_full_once_units(spec.name, bucket, table=table)
+        units = generate_full_once_units(spec.name, bucket, table=table)
+        return _merge_static_params(units, spec.fetch_strategy.static_params)
 
     if strategy in ("date_loop", "offset_paging"):
         dates = get_trade_dates(
@@ -105,31 +107,50 @@ def plan_units(
             end_date or _today(),
         )
         if strategy == "offset_paging":
-            return generate_offset_paging_units(spec.name, bucket, dates, table=table)
-        return generate_date_loop_units(spec.name, bucket, dates, table=table)
+            units = generate_offset_paging_units(spec.name, bucket, dates, table=table)
+        else:
+            units = generate_date_loop_units(spec.name, bucket, dates, table=table)
+        return _merge_static_params(units, spec.fetch_strategy.static_params)
 
     if strategy == "period_loop":
-        return generate_period_loop_units(
+        units = generate_period_loop_units(
             spec.name, bucket, table=table,
             start_date=start_date or spec.start_date or "20200101",
             end_date=end_date or _today(),
         )
+        return _merge_static_params(units, spec.fetch_strategy.static_params)
 
     if strategy == "monthly_window":
-        return generate_monthly_window_units(
+        units = generate_monthly_window_units(
             spec.name, bucket, table=table,
             start_date=start_date or spec.start_date or "20200101",
             end_date=end_date or _today(),
         )
+        return _merge_static_params(units, spec.fetch_strategy.static_params)
 
-    if strategy == "per_symbol_period":
-        symbols = get_symbols(client)
-        return generate_per_symbol_period_units(
+    if strategy == "per_symbol":
+        symbol_table = spec.fetch_strategy.symbol_source or "tushare_stock_basic"
+        if symbol_table.startswith("tushare_"):
+            symbol_table = symbol_table
+        symbols = get_symbols(client, symbol_table)
+        units = generate_per_symbol_units(
             spec.name, bucket, table=table,
             symbols=symbols,
             start_date=start_date or spec.start_date or "20200101",
             end_date=end_date or _today(),
         )
+        return _merge_static_params(units, spec.fetch_strategy.static_params)
+
+    if strategy == "per_symbol_period":
+        symbol_table = spec.fetch_strategy.symbol_source or "tushare_stock_basic"
+        symbols = get_symbols(client, symbol_table)
+        units = generate_per_symbol_period_units(
+            spec.name, bucket, table=table,
+            symbols=symbols,
+            start_date=start_date or spec.start_date or "20200101",
+            end_date=end_date or _today(),
+        )
+        return _merge_static_params(units, spec.fetch_strategy.static_params)
 
     raise ValueError(f"Unknown strategy: {strategy}")
 
@@ -137,3 +158,28 @@ def plan_units(
 def _today() -> str:
     from datetime import datetime
     return datetime.now().strftime("%Y%m%d")
+
+
+def _merge_static_params(
+    units: list[WorkUnit],
+    static_params: dict[str, str] | None,
+) -> list[WorkUnit]:
+    """Merge static_params into every work unit's params.
+
+    Some Tushare APIs require fixed parameters like freq=W that don't vary
+    per unit. These are declared in fetch_strategy.static_params and merged
+    into each unit's params dict.
+    """
+    if not static_params:
+        return units
+    return [
+        WorkUnit(
+            interface=u.interface,
+            table=u.table,
+            scope_key=u.scope_key,
+            params={**static_params, **u.params},
+            bucket=u.bucket,
+            retries=u.retries,
+        )
+        for u in units
+    ]

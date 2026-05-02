@@ -1,6 +1,7 @@
 # options interfaces
 # 2 interfaces in this category
 ---
+
 name: opt_basic
 table: tushare_opt_basic
 enabled: true
@@ -16,6 +17,7 @@ fields: []
 schema_overrides: {}
 batch: reference
 ---
+
 name: opt_daily
 table: tushare_opt_daily
 enabled: true

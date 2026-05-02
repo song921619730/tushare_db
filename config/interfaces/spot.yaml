@@ -18,7 +18,7 @@ batch: reference
 ---
 name: sge_daily
 table: tushare_sge_daily
-enabled: true
+enabled: false  # disabled: Tushare rate limit 100/min, 100% failure
 priority: P3
 mode: incremental
 freq_bucket: normal

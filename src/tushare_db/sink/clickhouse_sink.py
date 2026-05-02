@@ -23,6 +23,7 @@ ASYNC_INSERT_SETTINGS = {
     "wait_for_async_insert": 1,
     "async_insert_max_data_size": 10485760,
     "async_insert_busy_timeout_ms": 200,
+    "max_partitions_per_insert_block": 1000,
 }
 
 
@@ -43,6 +44,8 @@ def get_native_client(
         username=user,
         password=password,
         database=database,
+        connect_timeout=10,
+        send_receive_timeout=300,
     )
 
 

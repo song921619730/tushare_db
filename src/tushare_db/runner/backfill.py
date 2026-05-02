@@ -33,8 +33,8 @@ def get_layer(spec: InterfaceSpec) -> int:
     # Layer 2: moneyflow & reference (P1 non-period)
     if priority == "P1" and strategy not in ("period_loop", "per_symbol_period"):
         return 2
-    # Layer 3: financial period_loop + per_symbol_period long-tail
-    if strategy in ("period_loop", "per_symbol_period"):
+    # Layer 3: financial period_loop + per_symbol_period/ per_symbol long-tail
+    if strategy in ("period_loop", "per_symbol_period", "per_symbol"):
         return 3
     # Layer 4: concept boards / features (P2)
     if priority == "P2":

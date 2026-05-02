@@ -24,6 +24,7 @@ import time
 import click
 from dotenv import load_dotenv
 
+from tushare_db.core.concurrency_lock import ConcurrencyLock
 from tushare_db.logging_setup import setup_logging
 from tushare_db.meta.bootstrap import (
     get_client,
@@ -423,10 +424,13 @@ def bootstrap(only: str | None, ch_host: str, ch_password: str) -> None:
             # Extract order_by column names (strip functions)
             import re
             order_cols = [c.strip() for c in re.split(r'[,()]', order_by) if c.strip() and c.strip() != 'tuple()']
-            if not all(c in col_names for c in order_cols):
-                missing = [c for c in order_cols if c not in col_names]
-                click.echo(f"  {spec.name}: WARNING: order_by references missing columns {missing}, falling back to tuple()")
-                order_by = "tuple()"
+            missing_order = [c for c in order_cols if c not in col_names]
+            if missing_order:
+                # Add missing ORDER BY columns as String (non-nullable, required for sorting key)
+                for col in missing_order:
+                    columns.append((col, "String"))
+                    col_names.add(col)
+                click.echo(f"  {spec.name}: Added missing order_by columns {missing_order}")
 
             table_name = f"tushare.{spec.table}"
             ddl = build_create_table(
@@ -474,6 +478,9 @@ def backfill(
     """Backfill historical data for specified interfaces."""
     from tushare_db.runner.backfill import select_specs, run_backfill
     from tushare_db.runner.verify_hook import make_verify_hook
+
+    lock = ConcurrencyLock()
+    lock.acquire()
 
     specs = select_specs(layer=layer, priority=priority, interface=interface, backfill_all=backfill_all)
     if not specs:
@@ -578,6 +585,9 @@ def resume(interface: str | None, dry_run: bool) -> None:
     from tushare_db.runner.executor import execute_batch
     from tushare_db.meta.sync_state import get_pending_units
 
+    lock = ConcurrencyLock()
+    lock.acquire()
+
     specs = load_interface_specs()
     if interface:
         specs = [s for s in specs if s.name == interface]
@@ -655,6 +665,9 @@ def update(batch: str | None, incremental: bool) -> None:
     """[PR4] Incremental update (T-1)."""
     from tushare_db.runner.incremental import run_incremental
 
+    lock = ConcurrencyLock()
+    lock.acquire()
+
     ch_client = _get_ch_native()
     tushare_client = _get_tushare_client()
 
@@ -731,6 +744,28 @@ def verify(priority: str | None, interface: str | None, gaps: bool, checksums: b
                     )
     finally:
         ch_client.close()
+
+
+@cli.command(name="reset-state")
+@click.option("--interface", required=True, help="Interface name to reset")
+@click.option("--confirm", is_flag=True, help="Actually delete (without this is dry-run)")
+def reset_state(interface: str, confirm: bool) -> None:
+    """Delete all sync_state rows for an interface (use after strategy change)."""
+    ch = _get_ch_native()
+    try:
+        result = ch.query(
+            f"SELECT count(), countIf(status='done'), countIf(status='failed'), countIf(status='running') "
+            f"FROM _meta.sync_state WHERE interface = '{interface}'"
+        )
+        row = result.result_rows[0] if result.result_rows else (0, 0, 0, 0)
+        print(f"Found {row[0]} rows for {interface} (done={row[1]}, failed={row[2]}, running={row[3]})")
+        if not confirm:
+            print("Dry-run; pass --confirm to actually delete")
+            return
+        ch.command(f"ALTER TABLE _meta.sync_state DELETE WHERE interface = '{interface}'")
+        print(f"Deleted. Re-plan with: tushare-db backfill --interface {interface}")
+    finally:
+        ch.close()
 
 
 @cli.command()

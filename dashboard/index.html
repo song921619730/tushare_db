@@ -133,7 +133,10 @@ function formatBytes(bytes) {
 function timeAgo(dateStr) {
   if (!dateStr) return '—';
   const d = new Date(dateStr);
+  // Guard against epoch sentinel (1970-01-01) used for non-done units
+  if (d.getFullYear() < 2000) return '从未同步';
   const diff = Date.now() - d.getTime();
+  if (diff < 0) return '刚刚';
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return mins + ' 分钟前';
   const hours = Math.floor(mins / 60);
@@ -258,7 +261,7 @@ const DashboardPage = {
         // Status counts (map enum to string for ClickHouse)
         const t3 = chQuery('SELECT toString(status) as status, count() as cnt FROM _meta.sync_state FINAL GROUP BY status ORDER BY cnt DESC', cfg);
         // Alerts (failed/partial in last 24h)
-        const t4 = chQuery('SELECT interface, toString(status) as status, last_error FROM _meta.sync_state FINAL WHERE status IN (\'failed\',\'partial\') LIMIT 20', cfg);
+        const t4 = chQuery('SELECT interface, toString(status) as status, last_error, heartbeat_at FROM _meta.sync_state FINAL WHERE status IN (\'failed\',\'partial\') AND heartbeat_at >= now() - INTERVAL 24 HOUR ORDER BY heartbeat_at DESC LIMIT 20', cfg);
         // Synced tables
         const t5 = chQuery('SELECT count(DISTINCT interface) as cnt FROM _meta.sync_state FINAL WHERE status=\'done\'', cfg);
 
@@ -276,7 +279,7 @@ const DashboardPage = {
         }
 
         if (r4.data) {
-          alerts.value = r4.data.map(d => ({ interface: d.interface, level: d.status === 'failed' ? 'error' : 'warn', msg: d.last_error || '' }));
+          alerts.value = r4.data.map(d => ({ interface: d.interface, level: d.status === 'failed' ? 'error' : 'warn', msg: d.last_error || '', time: d.heartbeat_at }));
         }
       } catch (e) {
         error.value = e.message;
@@ -363,8 +366,11 @@ const DashboardPage = {
         <div style="fontSize:11;color:var(--mute);letterSpacing:'0.12em';textTransform:'uppercase';marginBottom:12">告警 — 近 24h <span :style="{ color:'var(--neg)' }">({{ alerts.length }} events)</span></div>
         <div v-for="(a, i) in alerts.slice(0, 8)" :key="i" style="display:flex;gap:12;padding:'8px 0';borderBottom: i < alerts.length-1 ? '1px solid var(--line)' : 'none'">
           <span :style="{ width:4,height:4,background: a.level==='error' ? 'var(--neg)' : 'var(--warn)',borderRadius:'50%',marginTop:6,flexShrink:0 }"></span>
-          <div>
-            <span style="fontFamily:'var(--font-mono)';fontSize:12;color:statusColor(a.level==='error'?'failed':'partial');fontWeight:500">{{ a.interface }}</span>
+          <div style="flex:1;minWidth:0">
+            <div style="display:flex;justifyContent:'space-between';alignItems:'baseline';gap:8">
+              <span style="fontFamily:'var(--font-mono)';fontSize:12;color:statusColor(a.level==='error'?'failed':'partial');fontWeight:500">{{ a.interface }}</span>
+              <span style="fontFamily:'var(--font-mono)';fontSize:10;color:var(--mute);flexShrink:0">{{ timeAgo(a.time) }}</span>
+            </div>
             <div style="fontSize:11;color:var(--fg);marginTop:2;lineHeight:1.4;maxWidth:600;overflow:'hidden';textOverflow:'ellipsis';whiteSpace:'nowrap'">{{ a.msg }}</div>
           </div>
         </div>

@@ -26,7 +26,7 @@ freq_bucket: normal
 fetch_strategy:
   kind: full_once
 partition_key: tuple()
-order_by: ts_code
+order_by: name
 required_params: []
 fields: []
 schema_overrides: {}
@@ -50,16 +50,16 @@ batch: reference
 ---
 name: new_share
 table: tushare_new_share
-enabled: true
+enabled: false  # disabled: Tushare rate limit 100/min, 90%+ failure rate
 priority: P1
 mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+  date_field: ipo_date
+partition_key: toYYYYMM(ipo_date)
+order_by: ts_code
 required_params: []
 fields: []
 schema_overrides: {}
@@ -67,7 +67,7 @@ batch: reference
 ---
 name: st
 table: tushare_st
-enabled: true
+enabled: false  # disabled: 100% verify_failed, API data format changed
 priority: P2
 mode: incremental
 freq_bucket: special
@@ -92,7 +92,7 @@ start_date: '20200101'
 fetch_strategy:
   kind: full_once
 partition_key: tuple()
-order_by: ts_code
+order_by: ts_code, ann_date
 required_params: []
 fields: []
 schema_overrides: {}
@@ -100,7 +100,7 @@ batch: reference
 ---
 name: stk_premarket
 table: tushare_stk_premarket
-enabled: true
+enabled: false  # disabled: no permission, requires account upgrade
 priority: P2
 mode: incremental
 freq_bucket: special
@@ -117,7 +117,7 @@ batch: B
 ---
 name: stk_rewards
 table: tushare_stk_rewards
-enabled: true
+enabled: false  # disabled: API requires ts_code parameter, no symbol_source configured
 priority: P1
 mode: full
 freq_bucket: normal

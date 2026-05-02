@@ -1,6 +1,7 @@
 # etf interfaces
 # 5 interfaces in this category
 ---
+
 name: etf_basic
 table: tushare_etf_basic
 enabled: true
@@ -16,6 +17,7 @@ fields: []
 schema_overrides: {}
 batch: reference
 ---
+
 name: etf_index
 table: tushare_etf_index
 enabled: true
@@ -32,6 +34,7 @@ schema_overrides:
   pub_date: Nullable(Date)
 batch: reference
 ---
+
 name: etf_share_size
 table: tushare_etf_share_size
 enabled: true
@@ -49,6 +52,7 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: fund_adj
 table: tushare_fund_adj
 enabled: true
@@ -66,6 +70,7 @@ fields: []
 schema_overrides: {}
 batch: A
 ---
+
 name: fund_daily
 table: tushare_fund_daily
 enabled: true
