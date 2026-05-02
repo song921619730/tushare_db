@@ -1,0 +1,773 @@
+name: hk_adjfactor
+table: tushare_hk_adjfactor
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_balancesheet
+table: tushare_hk_balancesheet
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_hk_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_basic
+table: tushare_hk_basic
+enabled: false
+priority: P3
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+disabled_reason: paid_5000
+---
+name: hk_cashflow
+table: tushare_hk_cashflow
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_hk_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_daily
+table: tushare_hk_daily
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_daily_adj
+table: tushare_hk_daily_adj
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_fina_indicator
+table: tushare_hk_fina_indicator
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_hk_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_income
+table: tushare_hk_income
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_hk_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_mins
+table: tushare_hk_mins
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_hk_basic
+  static_params:
+    freq: '1min'
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_tradecal
+table: tushare_hk_tradecal
+enabled: false
+priority: P3
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+disabled_reason: paid_5000
+---
+name: rt_hk_k
+table: tushare_rt_hk_k
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: realtime_not_for_backfill
+---
+name: hk_dividend
+table: tushare_hk_dividend
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_weekly
+table: tushare_hk_weekly
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_monthly
+table: tushare_hk_monthly
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_moneyflow
+table: tushare_hk_moneyflow
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: hk_top10
+table: tushare_hk_top10
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_basic
+table: tushare_us_basic
+enabled: false
+priority: P3
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+disabled_reason: paid_5000
+---
+name: us_balancesheet
+table: tushare_us_balancesheet
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_us_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_cashflow
+table: tushare_us_cashflow
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_us_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_daily
+table: tushare_us_daily
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_daily_adj
+table: tushare_us_daily_adj
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_fina_indicator
+table: tushare_us_fina_indicator
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_us_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_income
+table: tushare_us_income
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_us_basic
+partition_key: toYYYYMM(end_date)
+order_by: ts_code, end_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_tradecal
+table: tushare_us_tradecal
+enabled: false
+priority: P3
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+disabled_reason: paid_5000
+---
+name: us_adjfactor
+table: tushare_us_adjfactor
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_dividend
+table: tushare_us_dividend
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_weekly
+table: tushare_us_weekly
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_monthly
+table: tushare_us_monthly
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_moneyflow
+table: tushare_us_moneyflow
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: us_top10
+table: tushare_us_top10
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: etf_iopv
+table: tushare_etf_iopv
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: rt_etf_k
+table: tushare_rt_etf_k
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: ft_mins
+table: tushare_ft_mins
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_fut_basic
+  static_params:
+    freq: '1min'
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: rt_fut_min
+table: tushare_rt_fut_min
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: realtime_not_for_backfill
+---
+name: idx_mins
+table: tushare_idx_mins
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: rt_idx_k
+table: tushare_rt_idx_k
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: rt_idx_min
+table: tushare_rt_idx_min
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: rt_sw_k
+table: tushare_rt_sw_k
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: opt_mins
+table: tushare_opt_mins
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_opt_basic
+  static_params:
+    freq: '1min'
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: paid_5000
+---
+name: rt_min
+table: tushare_rt_min
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: realtime_not_for_backfill
+---
+name: rt_k
+table: tushare_rt_k
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+disabled_reason: realtime_not_for_backfill
+---
+name: cyq_d
+table: tushare_cyq_d
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+disabled_reason: paid_5000
+---
+name: hk_hold_detail
+table: tushare_hk_hold_detail
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: special
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+disabled_reason: paid_5000
+---
+name: film_boxoffice
+table: tushare_film_boxoffice
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: normal
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+disabled_reason: paid_5000
+---
+name: film_daily
+table: tushare_film_daily
+enabled: false
+priority: P3
+mode: incremental
+freq_bucket: normal
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+disabled_reason: paid_5000

@@ -1,0 +1,182 @@
+# fund interfaces
+# 10 interfaces in this category
+---
+
+name: fund_basic
+table: tushare_fund_basic
+enabled: true
+priority: P1
+mode: full
+freq_bucket: normal
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+
+name: fund_company
+table: tushare_fund_company
+enabled: true
+priority: P2
+mode: full
+freq_bucket: normal
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: name
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+
+name: fund_div
+table: tushare_fund_div
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_fund_basic
+  date_field: ann_date
+partition_key: toYYYYMM(ann_date)
+order_by: ts_code, ann_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: saturday
+---
+
+name: fund_factor_pro
+table: tushare_fund_factor_pro
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_stock_basic
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+
+name: fund_manager
+table: tushare_fund_manager
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A
+---
+
+name: fund_nav
+table: tushare_fund_nav
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_fund_basic
+  date_field: nav_date
+partition_key: toYYYYMM(nav_date)
+order_by: ts_code, nav_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: saturday
+---
+
+name: fund_portfolio
+table: tushare_fund_portfolio
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_fund_basic
+  date_field: ann_date
+partition_key: toYYYYMM(ann_date)
+order_by: ts_code, ann_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: saturday
+---
+
+name: fund_sales_ratio
+table: tushare_fund_sales_ratio
+enabled: false  # disabled: API only returns 5 years of annual summary data
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+
+name: fund_sales_vol
+table: tushare_fund_sales_vol
+enabled: false  # disabled: Tushare rate limit 5/min, backfill always fails
+priority: P3
+mode: incremental
+freq_bucket: normal
+start_date: '20210101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+
+name: fund_share
+table: tushare_fund_share
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: A

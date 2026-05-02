@@ -1,0 +1,35 @@
+# Local integration test runner.
+# Usage: docker compose -f docker-compose.test.yml run --rm test-runner
+#        docker compose -f docker-compose.test.yml down
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    environment:
+      CH_HTTP_PORT: 8123
+      CH_PIPELINE_PASSWORD: testpw
+      CH_AI_READER_PASSWORD: testpw
+    healthcheck:
+      test: wget -qO- http://localhost:8123/ping
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  test-runner:
+    build:
+      context: .
+      dockerfile: docker/pipeline/Dockerfile
+    volumes:
+      - ./tests:/app/tests:ro
+      - ./src:/app/src:ro
+    environment:
+      CH_HOST: clickhouse
+      CH_HTTP_PORT: 8123
+      CH_PIPELINE_PASSWORD: testpw
+      CH_AI_READER_PASSWORD: testpw
+      TUSHARE_NORMAL_WORKERS: "4"
+      TUSHARE_SPECIAL_WORKERS: "2"
+    command: pytest tests/integration -v --tb=short
+    depends_on:
+      clickhouse:
+        condition: service_healthy

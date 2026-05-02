@@ -1,0 +1,362 @@
+name: dc_daily
+table: tushare_dc_daily
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: dc_hot
+table: tushare_dc_hot
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: dc_index
+table: tushare_dc_index
+enabled: true
+priority: P1
+mode: full
+freq_bucket: normal
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: dc_member
+table: tushare_dc_member
+enabled: false  # API exists but consistently times out; needs tdx_index symbol_source
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_tdx_index
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: hm_detail
+table: tushare_hm_detail
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20220801'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: hm_list
+table: tushare_hm_list
+enabled: true
+priority: P2
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: name
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: kpl_concept_cons
+table: tushare_kpl_concept_cons
+enabled: true
+priority: P3
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code, con_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: kpl_list
+table: tushare_kpl_list
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: limit_cpt_list
+table: tushare_limit_cpt_list
+enabled: false  # disabled: API returns 0 rows
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: limit_list_d
+table: tushare_limit_list_d
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: limit_list_ths
+table: tushare_limit_list_ths
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20231101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: limit_step
+table: tushare_limit_step
+enabled: false  # disabled: API returns 0 rows
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: stk_auction
+table: tushare_stk_auction
+enabled: false  # empty sample: Tushare returns no data
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+disabled_reason: empty_sample
+---
+name: tdx_daily
+table: tushare_tdx_daily
+enabled: false  # disabled: API returns 0 rows for all 481 TDX index codes
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_tdx_index
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: tdx_index
+table: tushare_tdx_index
+enabled: true
+priority: P2
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: tdx_member
+table: tushare_tdx_member
+enabled: true
+priority: P2
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code, con_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: ths_daily
+table: tushare_ths_daily
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: ths_hot
+table: tushare_ths_hot
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: special
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: ths_index
+table: tushare_ths_index
+enabled: true
+priority: P1
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: ths_member
+table: tushare_ths_member
+enabled: true
+priority: P1
+mode: full
+freq_bucket: special
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: ts_code, con_code
+required_params: []
+fields: []
+schema_overrides: {}
+batch: reference
+---
+name: top_inst
+table: tushare_top_inst
+enabled: true
+priority: P2
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C
+---
+name: top_list
+table: tushare_top_list
+enabled: true
+priority: P1
+mode: incremental
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: date_loop
+  date_field: trade_date
+partition_key: toYYYYMM(trade_date)
+order_by: ts_code, trade_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: C

@@ -1,0 +1,16 @@
+$schema: interface-spec-v1
+description: Interface specification schema - see design doc §1
+fields:
+  name: Tushare API interface name
+  table: ClickHouse target table name (tushare.*)
+  enabled: Whether this interface is active
+  priority: P0|P1|P2|P3
+  mode: full|incremental
+  freq_bucket: normal|special
+  start_date: Backfill start YYYYMMDD
+  fetch_strategy:
+    kind: full_once|date_loop|period_loop|monthly_window|per_symbol|per_symbol_period|offset_paging
+    date_field: trade_date|end_date|cal_date
+    step: days per fetch (for date_loop)
+    symbol_source: source for ts_code list (for per_symbol_period)
+  batch: A|B|C|D|saturday|reference

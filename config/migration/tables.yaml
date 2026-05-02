@@ -1,0 +1,695 @@
+# Migration table mapping: PostgreSQL → ClickHouse
+# Generated: 2026-04-26
+# Based on PG detection: 141 logical tables, 7.4M stock_daily rows
+
+# ========================
+# P0 — Core Daily Data (8 tables)
+# ========================
+
+- pg_table: tushare_stock_basic
+  ch_table: tushare_stock_basic
+  priority: P0
+  partitioned: false
+  batch_size: 100000
+  expected_rows: 5510
+  notes: "Stock list, smallest table, first to test pathway"
+
+- pg_table: tushare_trade_cal
+  ch_table: trade_cal
+  ch_database: _meta
+  priority: P0
+  partitioned: false
+  batch_size: 100000
+  expected_rows: 13162
+  notes: "Trade calendar lives in _meta database"
+
+- pg_table: tushare_stock_daily
+  ch_table: tushare_stock_daily
+  priority: P0
+  partitioned: true
+  partition_pattern: "tushare_stock_daily_{year}"
+  partition_years: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]
+  include_default_partition: true
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 7442501
+  notes: "Largest table: ~7.4M rows"
+
+- pg_table: tushare_stock_weekly
+  ch_table: tushare_stock_weekly
+  priority: P0
+  partitioned: true
+  partition_pattern: "tushare_stock_weekly_{year}"
+  partition_years: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]
+  include_default_partition: true
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 1538761
+
+- pg_table: tushare_adj_factor
+  ch_table: tushare_adj_factor
+  priority: P0
+  partitioned: true
+  partition_pattern: "tushare_adj_factor_{year}"
+  partition_years: [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026, 2027]
+  include_default_partition: true
+  date_column: trade_date
+  batch_size: 100000
+  notes: "PG only has 11K rows in _2026 partition. CH already has 4.67M. Migration supplements, not replaces."
+
+- pg_table: tushare_daily_basic
+  ch_table: tushare_daily_basic
+  priority: P0
+  partitioned: false
+  date_column: trade_date
+  batch_size: 100000
+  notes: "PG only 6K rows — likely limited dataset. Migration partial."
+
+- pg_table: tushare_stk_limit
+  ch_table: tushare_stk_limit
+  priority: P0
+  date_column: trade_date
+  batch_size: 100000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_suspend_d
+  ch_table: tushare_suspend_d
+  priority: P0
+  date_column: trade_date
+  batch_size: 100000
+  notes: "PG: 0 rows — will be skipped"
+
+# ========================
+# P1 — Financial (5 tables)
+# ========================
+
+- pg_table: tushare_income
+  ch_table: tushare_income
+  priority: P1
+  date_column: end_date
+  batch_size: 100000
+  expected_rows: 123800
+
+- pg_table: tushare_balancesheet
+  ch_table: tushare_balancesheet
+  priority: P1
+  date_column: end_date
+  batch_size: 100000
+  expected_rows: 122180
+
+- pg_table: tushare_cashflow
+  ch_table: tushare_cashflow
+  priority: P1
+  date_column: end_date
+  batch_size: 100000
+  expected_rows: 123676
+
+- pg_table: tushare_fina_indicator
+  ch_table: tushare_fina_indicator
+  priority: P1
+  date_column: end_date
+  batch_size: 100000
+  expected_rows: 118565
+
+- pg_table: tushare_dividend
+  ch_table: tushare_dividend
+  priority: P1
+  date_column: end_date
+  batch_size: 100000
+  notes: "PG: 0 rows — will be skipped"
+
+# ========================
+# P2 — Money Flow + Limit Board (~8 tables)
+# ========================
+
+- pg_table: tushare_moneyflow
+  ch_table: tushare_moneyflow
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 456000
+
+- pg_table: tushare_limit_list_d
+  ch_table: tushare_limit_list_d
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 153134
+
+- pg_table: tushare_ths_daily
+  ch_table: tushare_ths_daily
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 228000
+
+- pg_table: tushare_top_inst
+  ch_table: tushare_top_inst
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 814461
+
+- pg_table: tushare_moneyflow_hsgt
+  ch_table: tushare_moneyflow_hsgt
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 1478
+
+- pg_table: tushare_top_list
+  ch_table: tushare_top_list
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 96809
+
+- pg_table: tushare_margin
+  ch_table: tushare_margin
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 3829
+
+- pg_table: tushare_block_trade
+  ch_table: tushare_block_trade
+  priority: P2
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 42261
+
+- pg_table: tushare_share_float
+  ch_table: tushare_share_float
+  priority: P2
+  date_column: float_date
+  batch_size: 100000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_stk_holdernumber
+  ch_table: tushare_stk_holdernumber
+  priority: P2
+  date_column: ann_date
+  batch_size: 100000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_pledge_stat
+  ch_table: tushare_pledge_stat
+  priority: P2
+  date_column: end_date
+  batch_size: 100000
+  notes: "PG: 0 rows — will be skipped"
+
+# ========================
+# P3 — Remaining Tables (subset of 56 missing in CH)
+# Only tables with non-zero PG data included
+# ========================
+
+- pg_table: tushare_index_weight
+  ch_table: tushare_index_weight
+  priority: P3
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 551558
+
+- pg_table: tushare_fina_mainbz
+  ch_table: tushare_fina_mainbz
+  priority: P3
+  date_column: end_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_top10_holders
+  ch_table: tushare_top10_holders
+  priority: P3
+  date_column: end_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_stk_holdertrade
+  ch_table: tushare_stk_holdertrade
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_moneyflow_ths
+  ch_table: tushare_moneyflow_ths
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_moneyflow_ind_ths
+  ch_table: tushare_moneyflow_ind_ths
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_moneyflow_cnt_ths
+  ch_table: tushare_moneyflow_cnt_ths
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_dc_hot
+  ch_table: tushare_dc_hot
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_index_monthly
+  ch_table: tushare_index_monthly
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped"
+
+- pg_table: tushare_fund_nav
+  ch_table: tushare_fund_nav
+  priority: P3
+  date_column: cal_date
+  column_renames:
+    end_date: cal_date
+  batch_size: 50000
+  notes: "PG: 0 rows — will be skipped. Column rename: end_date → cal_date"
+
+- pg_table: tushare_fund_portfolio
+  ch_table: tushare_fund_portfolio
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+
+- pg_table: tushare_fund_div
+  ch_table: tushare_fund_div
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+
+- pg_table: tushare_index_daily
+  ch_table: tushare_index_daily
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_anns_d
+  ch_table: tushare_anns_d
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+
+- pg_table: tushare_bo_daily
+  ch_table: tushare_bo_daily
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_cctv_news
+  ch_table: tushare_cctv_news
+  priority: P3
+  date_column: date
+  batch_size: 50000
+
+- pg_table: tushare_cyq_chips
+  ch_table: tushare_cyq_chips
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_dc_member
+  ch_table: tushare_dc_member
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_etf_iopv
+  ch_table: tushare_etf_iopv
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_etf_mins
+  ch_table: tushare_etf_mins
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_film_record
+  ch_table: tushare_film_record
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_fina_audit
+  ch_table: tushare_fina_audit
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+
+- pg_table: tushare_fut_mins
+  ch_table: tushare_fut_mins
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_index_mins
+  ch_table: tushare_index_mins
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_irm_qa_sh
+  ch_table: tushare_irm_qa_sh
+  priority: P3
+  date_column: date
+  batch_size: 50000
+
+- pg_table: tushare_irm_qa_sz
+  ch_table: tushare_irm_qa_sz
+  priority: P3
+  date_column: date
+  batch_size: 50000
+
+- pg_table: tushare_major_news
+  ch_table: tushare_major_news
+  priority: P3
+  date_column: date
+  batch_size: 50000
+
+- pg_table: tushare_news
+  ch_table: tushare_news
+  priority: P3
+  date_column: date
+  batch_size: 50000
+
+- pg_table: tushare_npr
+  ch_table: tushare_npr
+  priority: P3
+  date_column: date
+  batch_size: 50000
+
+- pg_table: tushare_opt_mins
+  ch_table: tushare_opt_mins
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_pledge_detail
+  ch_table: tushare_pledge_detail
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+
+- pg_table: tushare_research_report
+  ch_table: tushare_research_report
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+
+- pg_table: tushare_rt_etf_k
+  ch_table: tushare_rt_etf_k
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_rt_idx_k
+  ch_table: tushare_rt_idx_k
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_rt_min
+  ch_table: tushare_rt_min
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_rt_sw_k
+  ch_table: tushare_rt_sw_k
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_stock_mins
+  ch_table: tushare_stock_mins
+  priority: P3
+  date_column: trade_time
+  batch_size: 50000
+
+- pg_table: tushare_stock_monthly
+  ch_table: tushare_stock_monthly
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+# Hong Kong / US tables (CH doesn't have these)
+- pg_table: tushare_hk_basic
+  ch_table: tushare_hk_basic
+  priority: P3
+  batch_size: 50000
+
+- pg_table: tushare_hk_daily
+  ch_table: tushare_hk_daily
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_us_basic
+  ch_table: tushare_us_basic
+  priority: P3
+  batch_size: 50000
+
+- pg_table: tushare_us_daily
+  ch_table: tushare_us_daily
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_api_calls_log
+  ch_table: tushare_api_calls_log
+  priority: P3
+  batch_size: 50000
+  notes: "Internal log table, may not need migration"
+
+- pg_table: tushare_sync_status
+  ch_table: tushare_sync_status
+  priority: P3
+  batch_size: 50000
+  notes: "Internal status table, may not need migration"
+
+- pg_table: tushare_broker_recommend
+  ch_table: tushare_broker_recommend
+  priority: P3
+  date_column: trade_date
+  batch_size: 50000
+
+- pg_table: tushare_cb_issue
+  ch_table: tushare_cb_issue
+  priority: P3
+  date_column: ann_date
+  batch_size: 50000
+  notes: "CH has this table — verify column compatibility"
+
+# ========================
+# P4 — Newly discovered PG data tables (27 tables)
+# Discovered: 2026-04-26 full PG scan
+# ========================
+
+- pg_table: tushare_stk_factor_pro
+  ch_table: tushare_stk_factor_pro
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 7327235
+  notes: "Largest undiscovered: 7.3M rows"
+
+- pg_table: tushare_index_weight
+  ch_table: tushare_index_weight
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 551558
+
+- pg_table: tushare_margin_detail
+  ch_table: tushare_margin_detail
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 456000
+
+- pg_table: tushare_stock_monthly
+  ch_table: tushare_stock_monthly
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 357979
+
+- pg_table: tushare_cyq_perf
+  ch_table: tushare_cyq_perf
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 239077
+
+- pg_table: tushare_dc_daily
+  ch_table: tushare_dc_daily
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 150277
+
+- pg_table: tushare_fund_daily
+  ch_table: tushare_fund_daily
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 89098
+
+- pg_table: tushare_fx_daily
+  ch_table: tushare_fx_daily
+  priority: P4
+  date_column: trade_date
+  batch_size: 100000
+  expected_rows: 28000
+
+- pg_table: tushare_fund_basic
+  ch_table: tushare_fund_basic
+  priority: P4
+  date_column: list_date
+  batch_size: 50000
+  expected_rows: 15000
+  notes: "Static data, no date_column match — using list_date"
+
+- pg_table: tushare_opt_basic
+  ch_table: tushare_opt_basic
+  priority: P4
+  date_column: list_date
+  batch_size: 50000
+  expected_rows: 12438
+
+- pg_table: tushare_fut_basic
+  ch_table: tushare_fut_basic
+  priority: P4
+  date_column: list_date
+  batch_size: 50000
+  expected_rows: 10000
+
+- pg_table: tushare_fut_daily
+  ch_table: tushare_fut_daily
+  priority: P4
+  date_column: trade_date
+  batch_size: 50000
+  expected_rows: 2000
+
+- pg_table: tushare_sge_daily
+  ch_table: tushare_sge_daily
+  priority: P4
+  date_column: trade_date
+  batch_size: 50000
+  expected_rows: 14000
+
+- pg_table: tushare_shibor
+  ch_table: tushare_shibor
+  priority: P4
+  date_column: date
+  batch_size: 50000
+  expected_rows: 2001
+
+- pg_table: tushare_etf_basic
+  ch_table: tushare_etf_basic
+  priority: P4
+  date_column: list_date
+  batch_size: 50000
+  expected_rows: 3253
+
+- pg_table: tushare_index_basic
+  ch_table: tushare_index_basic
+  priority: P4
+  date_column: list_date
+  batch_size: 50000
+  expected_rows: 8000
+
+- pg_table: tushare_stock_company
+  ch_table: tushare_stock_company
+  priority: P4
+  date_column: setup_date
+  batch_size: 50000
+  expected_rows: 6272
+
+- pg_table: tushare_cb_basic
+  ch_table: tushare_cb_basic
+  priority: P4
+  date_column: list_date
+  batch_size: 50000
+  expected_rows: 1126
+
+- pg_table: tushare_cn_m
+  ch_table: tushare_cn_m
+  priority: P4
+  date_column: null
+  batch_size: 50000
+  expected_rows: 579
+  notes: "Macroeconomic data, no trade_date — static"
+
+- pg_table: tushare_cn_cpi
+  ch_table: tushare_cn_cpi
+  priority: P4
+  date_column: null
+  batch_size: 50000
+  expected_rows: 507
+  notes: "Macroeconomic data, no trade_date — static"
+
+- pg_table: tushare_cn_ppi
+  ch_table: tushare_cn_ppi
+  priority: P4
+  date_column: null
+  batch_size: 50000
+  expected_rows: 414
+  notes: "Macroeconomic data, no trade_date — static"
+
+- pg_table: tushare_cn_gdp
+  ch_table: tushare_cn_gdp
+  priority: P4
+  date_column: null
+  batch_size: 50000
+  expected_rows: 176
+  notes: "Macroeconomic data, no trade_date — static"
+
+- pg_table: tushare_hibor
+  ch_table: tushare_hibor
+  priority: P4
+  date_column: date
+  batch_size: 50000
+  expected_rows: 119
+
+- pg_table: tushare_libor
+  ch_table: tushare_libor
+  priority: P4
+  date_column: date
+  batch_size: 50000
+  expected_rows: 121
+
+- pg_table: tushare_sge_basic
+  ch_table: tushare_sge_basic
+  priority: P4
+  date_column: null
+  batch_size: 50000
+  expected_rows: 13
+  notes: "Static data, only 13 rows"
+
+- pg_table: tushare_shibor_lpr
+  ch_table: tushare_shibor_lpr
+  priority: P4
+  date_column: date
+  batch_size: 50000
+  expected_rows: 74
+
+- pg_table: tushare_fx_obasic
+  ch_table: tushare_fx_obasic
+  priority: P4
+  date_column: null
+  batch_size: 50000
+  expected_rows: 69
+  notes: "Static data, only 69 rows"

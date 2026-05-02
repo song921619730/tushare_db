@@ -1,0 +1,66 @@
+name: film_record
+table: tushare_film_record
+enabled: false  # offline: interface not found on Tushare (deprecated)
+priority: P3
+mode: full
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(ann_date)
+order_by: ts_code, ann_date
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+disabled_reason: tushare_offline_2024
+---
+name: teleplay_record
+table: tushare_teleplay_record
+enabled: true
+priority: P3
+mode: full
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: full_once
+partition_key: tuple()
+order_by: name
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+---
+name: tmt_twincome
+table: tushare_tmt_twincome
+enabled: false  # offline: interface not found on Tushare (deprecated)
+priority: P3
+mode: full
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(date)
+order_by: date, item
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+disabled_reason: tushare_offline_2024
+---
+name: tmt_twincomedetail
+table: tushare_tmt_twincomedetail
+enabled: false  # offline: interface not found on Tushare (deprecated)
+priority: P3
+mode: full
+freq_bucket: normal
+start_date: '20200101'
+fetch_strategy:
+  kind: full_once
+partition_key: toYYYYMM(date)
+order_by: date, item, symbol
+required_params: []
+fields: []
+schema_overrides: {}
+batch: D
+disabled_reason: tushare_offline_2024
