@@ -120,10 +120,8 @@ mode: incremental
 freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_stock_basic
-partition_key: tuple()
-order_by: ts_code, float_date
+  kind: date_loop
+  date_field: float_date
 required_params: []
 fields: []
 schema_overrides: {}
@@ -173,10 +171,8 @@ mode: incremental
 freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_stock_basic
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
+  kind: date_loop
+  date_field: end_date
 required_params: []
 fields: []
 schema_overrides: {}
