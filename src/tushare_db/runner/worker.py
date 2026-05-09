@@ -200,7 +200,7 @@ def _delete_written_rows(
     conditions = []
     if "ts_code" in params:
         conditions.append(f"ts_code = '{params['ts_code']}'")
-    for date_key in ("trade_date", "end_date", "ann_date"):
+    for date_key in ("trade_date", "end_date", "ann_date", "nav_date", "float_date"):
         if date_key in params:
             val = params[date_key]
             if isinstance(val, str) and len(val) == 8 and val.isdigit():

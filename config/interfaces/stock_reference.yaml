@@ -111,6 +111,7 @@ fields: []
 freq_bucket: special
 mode: incremental
 name: share_float
+order_by: ts_code, float_date
 priority: P2
 required_params: []
 schema_overrides: {}
@@ -159,6 +160,7 @@ fields: []
 freq_bucket: special
 mode: incremental
 name: stk_holdernumber
+order_by: ts_code, end_date
 priority: P2
 required_params: []
 schema_overrides: {}

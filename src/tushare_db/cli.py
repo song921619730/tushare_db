@@ -218,7 +218,8 @@ def probe() -> None:
         for spec in specs:
             try:
                 if spec.fetch_strategy.kind == "date_loop":
-                    client.call(spec.name, bucket=spec.freq_bucket, trade_date="20240101")
+                    date_field = spec.fetch_strategy.date_field or "trade_date"
+                    client.call(spec.name, bucket=spec.freq_bucket, **{date_field: "20240101"})
                 elif spec.fetch_strategy.kind == "period_loop":
                     client.call(spec.name, bucket=spec.freq_bucket, period="20240331")
                 elif spec.fetch_strategy.kind == "full_once":

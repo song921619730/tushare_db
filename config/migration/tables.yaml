@@ -188,7 +188,7 @@
 - pg_table: tushare_stk_holdernumber
   ch_table: tushare_stk_holdernumber
   priority: P2
-  date_column: ann_date
+  date_column: end_date
   batch_size: 100000
   notes: "PG: 0 rows — will be skipped"
 
@@ -270,7 +270,7 @@
 - pg_table: tushare_fund_nav
   ch_table: tushare_fund_nav
   priority: P3
-  date_column: cal_date
+  date_column: nav_date
   column_renames:
     end_date: cal_date
   batch_size: 50000
