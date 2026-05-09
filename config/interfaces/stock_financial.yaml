@@ -1,182 +1,174 @@
+batch: D
+dedupe_key: end_date
+enabled: true
+fetch_strategy:
+  date_field: end_date
+  kind: per_symbol_period
+  symbol_source: tushare_stock_basic
+fields: []
+freq_bucket: special
+mode: incremental
 name: balancesheet
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P0
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
 table: tushare_balancesheet
+---
+batch: D
+dedupe_key: end_date
 enabled: true
-priority: P0
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
 fetch_strategy:
+  date_field: end_date
   kind: per_symbol_period
   symbol_source: tushare_stock_basic
-  date_field: end_date
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
-dedupe_key: end_date
-required_params: []
 fields: []
-schema_overrides: {}
-batch: D
----
-
+freq_bucket: special
+mode: incremental
 name: cashflow
-table: tushare_cashflow
-enabled: true
-priority: P0
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol_period
-  symbol_source: tushare_stock_basic
-  date_field: end_date
-partition_key: toYYYYMM(end_date)
 order_by: ts_code, end_date
-dedupe_key: end_date
+partition_key: toYYYYMM(end_date)
+priority: P0
 required_params: []
-fields: []
 schema_overrides: {}
-batch: D
----
-
-name: disclosure_date
-table: tushare_disclosure_date
-enabled: true
-priority: P2
-mode: full
-freq_bucket: normal
 start_date: '20200101'
+table: tushare_cashflow
+---
+batch: reference
+enabled: true
 fetch_strategy:
   kind: full_once
-partition_key: toYYYYMM(end_date)
+fields: []
+freq_bucket: normal
+mode: full
+name: disclosure_date
 order_by: ts_code
+partition_key: toYYYYMM(end_date)
+priority: P2
 required_params: []
-fields: []
 schema_overrides: {}
-batch: reference
----
-
-name: dividend
-table: tushare_dividend
-enabled: true
-priority: P1
-mode: incremental
-freq_bucket: normal
 start_date: '20200101'
+table: tushare_disclosure_date
+---
+batch: saturday
+enabled: true
 fetch_strategy:
+  date_field: end_date
   kind: date_loop
-  date_field: end_date
-required_params: []
 fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: express
-table: tushare_express
-enabled: true
-priority: P2
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: period_loop
-  date_field: end_date
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: D
----
-
-name: fina_audit
-table: tushare_fina_audit
-enabled: true
-priority: P1
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol_period
-  symbol_source: tushare_stock_basic
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date, ann_date
-dedupe_key: end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: D
----
-
-name: fina_indicator
-table: tushare_fina_indicator
-enabled: true
-priority: P0
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: period_loop
-  date_field: end_date
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
-dedupe_key: end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: D
----
-
-name: fina_mainbz
-table: tushare_fina_mainbz
-enabled: true
-priority: P1
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol_period
-  symbol_source: tushare_stock_basic
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: forecast
-table: tushare_forecast
-enabled: true
-priority: P2
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol_period
-  symbol_source: tushare_stock_basic
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: income
-table: tushare_income
-enabled: true
-priority: P0
-mode: incremental
 freq_bucket: normal
-start_date: '20200101'
-fetch_strategy:
-  kind: period_loop
-  date_field: end_date
-partition_key: toYYYYMM(end_date)
+mode: incremental
+name: dividend
 order_by: ts_code, end_date
-dedupe_key: end_date
+priority: P1
 required_params: []
-fields: []
 schema_overrides: {}
+start_date: '20200101'
+table: tushare_dividend
+---
 batch: D
+enabled: true
+fetch_strategy:
+  date_field: end_date
+  kind: period_loop
+fields: []
+freq_bucket: special
+mode: incremental
+name: express
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_express
+---
+batch: D
+dedupe_key: end_date
+enabled: true
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_stock_basic
+fields: []
+freq_bucket: special
+mode: incremental
+name: fina_audit
+order_by: ts_code, end_date, ann_date
+partition_key: toYYYYMM(end_date)
+priority: P1
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_fina_audit
+---
+batch: D
+dedupe_key: end_date
+enabled: true
+fetch_strategy:
+  date_field: end_date
+  kind: period_loop
+fields: []
+freq_bucket: special
+mode: incremental
+name: fina_indicator
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P0
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_fina_indicator
+---
+batch: saturday
+enabled: true
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_stock_basic
+fields: []
+freq_bucket: special
+mode: incremental
+name: fina_mainbz
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P1
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_fina_mainbz
+---
+batch: saturday
+enabled: true
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_stock_basic
+fields: []
+freq_bucket: special
+mode: incremental
+name: forecast
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_forecast
+---
+batch: D
+dedupe_key: end_date
+enabled: true
+fetch_strategy:
+  date_field: end_date
+  kind: period_loop
+fields: []
+freq_bucket: normal
+mode: incremental
+name: income
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P0
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_income
