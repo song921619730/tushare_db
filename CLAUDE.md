@@ -10,7 +10,7 @@ A **Tushare Pro A-share data warehouse** that syncs Chinese stock market data in
 |-----------|------------|
 | Language | Python 3.11+ |
 | Database | ClickHouse 24.8 |
-| Scheduler | APScheduler |
+| Scheduler | System cron + shell scripts (no常驻进程) |
 | API | Tushare Pro (rate-limited ~500 req/min) |
 | AI Access | MCP server (SSE on port 7800) |
 | Dashboard | Grafana 11.0 |
@@ -22,24 +22,24 @@ A **Tushare Pro A-share data warehouse** that syncs Chinese stock market data in
 
 ```
 src/tushare_db/
-├── cli.py              # CLI entry: init, bootstrap, backfill, status, resume, update, verify, scheduler-run, mcp-serve
+├── cli.py              # CLI entry: init, bootstrap, backfill, status, resume, update, verify, mcp-serve
 ├── config/             # YAML interface specs + settings loader (pydantic models)
 ├── core/               # TushareClient, DualRateLimiter, clock, errors
 ├── meta/               # _meta table bootstrap, sync_state, sync_runs, api_calls, sql_utils
 ├── planner/            # Work unit planning (date-range splitting), strategies
 ├── runner/             # executor, backfill, incremental, worker
-├── scheduler/          # APScheduler service + job definitions
 ├── schema/             # DDL builder, type inference (from samples), evolver, type_map
 ├── sink/               # ClickHouse sink with deduplication
 ├── verify/             # Row counts, gap detection, checksums
 ├── mcp_server/         # MCP tools (query, status, backfill trigger), SSE/stdio transport
+└── scripts/            # Scheduled scripts: daily-incremental.sh, saturday-incremental.sh
 ```
 
 ## Data Flow
 
 1. **Bootstrap** (cold start): Sample APIs → infer schema → CREATE tables → seed trade_cal
 2. **Backfill**: Historical data by layer/priority, split into date-range work units
-3. **Incremental**: Daily T-1 updates via scheduler (APScheduler cron jobs)
+3. **Incremental**: Daily T-1 updates via system cron (scripts/daily-incremental.sh, scripts/saturday-incremental.sh)
 4. **Verify**: Row counts, gap detection, checksums
 5. **MCP**: AI agents query data via SSE endpoint
 
@@ -64,10 +64,11 @@ src/tushare_db/
 | Service | Ports | Purpose |
 |---------|-------|---------|
 | clickhouse | 8123, 9000 | Data store |
-| pipeline-scheduler | - | APScheduler daemon |
 | pipeline-mcp | 7800 | MCP SSE server |
 | grafana | 3000 | Dashboards |
 | dashboard | 3001 | Web dashboard |
+
+*Note: APScheduler `pipeline-scheduler` removed. Incremental updates run via system cron → `docker compose run`.*
 
 ## Development Commands
 
@@ -92,9 +93,6 @@ tushare-db update --incremental
 
 # Verify data integrity
 tushare-db verify [--gaps] [--checksums]
-
-# Start scheduler
-tushare-db scheduler-run
 
 # Start MCP server
 tushare-db mcp-serve --transport sse
