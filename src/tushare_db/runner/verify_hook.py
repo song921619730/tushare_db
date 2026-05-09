@@ -95,14 +95,17 @@ def _verify(
     table = unit.table
 
     # --- Check 1: Row count for this unit's scope ---
+    # Use FINAL to compare against the deduped state — ReplacingMergeTree
+    # naturally deduplicates by ORDER BY, so raw row count is not reliable
+    # when an API returns duplicates or when merges happen quickly.
     where_clause = _build_where_clause(unit)
-    query = f"SELECT count() FROM {table} WHERE {where_clause}"
+    query = f"SELECT count() FROM {table} FINAL WHERE {where_clause}"
     try:
         result = ch_client.query(query)
         actual_count = result.result_rows[0][0] if result.result_rows else 0
 
         if actual_count == 0:
-            # Definitive: we wrote rows_written > 0 but CH has zero rows
+            # Definitive: we wrote rows > 0 but CH has zero deduped rows
             logger.warning(
                 "verify: zero rows in CH",
                 interface=unit.interface,
@@ -110,23 +113,26 @@ def _verify(
                 expected=rows_written,
             )
             return False
-        elif actual_count < rows_written:
-            # Some dedup is normal for ReplacingMergeTree; warn only on heavy loss
+
+        # Heavy dedup loss is expected for:
+        #   - per_symbol units without date (fetch full history, re-dedup)
+        #   - APIs that return duplicate rows for the same ORDER BY key
+        # Only fail when deduped count is less than 5% of written — this
+        # catches genuine INSERT failures while tolerating natural dedup.
+        is_per_symbol_full = _is_per_symbol_no_date(unit)
+        min_expected = max(1, int(rows_written * 0.05))
+        if not is_per_symbol_full and actual_count < min_expected:
             loss = (rows_written - actual_count) / rows_written
-            if loss > 0.80:
-                logger.warning(
-                    "verify: heavy dedup loss",
-                    interface=unit.interface,
-                    scope_key=unit.scope_key,
-                    wrote=rows_written,
-                    has=actual_count,
-                    loss=f"{loss:.0%}",
-                )
-                return False
+            logger.warning(
+                "verify: heavy dedup loss",
+                interface=unit.interface,
+                scope_key=unit.scope_key,
+                wrote=rows_written,
+                has=actual_count,
+                loss=f"{loss:.0%}",
+            )
+            return False
     except Exception as e:
-        # Query failed (connection error, timeout, etc.) — cannot verify,
-        # assume data was written successfully. This is safer than marking
-        # a good unit as failed due to a flaky CH connection.
         logger.debug(
             "verify: CH query failed, assuming OK",
             interface=unit.interface,
@@ -192,9 +198,23 @@ def _verify(
     return True
 
 
+def _is_per_symbol_no_date(unit: WorkUnit) -> bool:
+    """True when the unit is per_symbol without a date/period param.
+
+    These units fetch full history for a single stock, so heavy dedup loss
+    on re-runs is expected and should not trigger a verify failure.
+    """
+    if "ts_code" not in unit.params:
+        return False
+    for key in ("trade_date", "end_date", "ann_date", "nav_date", "float_date", "period", "month"):
+        if key in unit.params:
+            return False
+    return True
+
+
 def _get_date_field(unit: WorkUnit) -> str | None:
     """Infer the primary date field from unit params."""
-    for key in ("trade_date", "end_date", "ann_date"):
+    for key in ("trade_date", "end_date", "ann_date", "nav_date", "float_date"):
         if key in unit.params:
             return key
     return None
@@ -207,7 +227,7 @@ def _build_where_clause(unit: WorkUnit) -> str:
     if "ts_code" in unit.params:
         conditions.append(f"ts_code = '{unit.params['ts_code']}'")
 
-    for date_key in ("trade_date", "end_date", "ann_date"):
+    for date_key in ("trade_date", "end_date", "ann_date", "nav_date", "float_date"):
         if date_key in unit.params:
             val = unit.params[date_key]
             if isinstance(val, str) and len(val) == 8 and val.isdigit():
