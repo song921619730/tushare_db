@@ -10,7 +10,7 @@ fields:
   start_date: Backfill start YYYYMMDD
   fetch_strategy:
     kind: full_once|date_loop|period_loop|monthly_window|per_symbol|per_symbol_period|offset_paging
-    date_field: trade_date|end_date|cal_date
+    date_field: trade_date|ann_date|end_date|nav_date|float_date
     step: days per fetch (for date_loop)
     symbol_source: source for ts_code list (for per_symbol_period)
   batch: A|B|C|D|saturday|reference
