@@ -1,265 +1,247 @@
-# stock_reference interfaces
-# 14 interfaces in this category
----
-
-name: block_trade
-table: tushare_block_trade
+batch: B
 enabled: true
-priority: P1
-mode: incremental
+fetch_strategy:
+  date_field: trade_date
+  kind: date_loop
+fields: []
 freq_bucket: normal
-start_date: '20200101'
-fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
+mode: incremental
+name: block_trade
 order_by: ts_code, trade_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: B
----
-
-name: margin_detail
-table: tushare_margin_detail
-enabled: true
+partition_key: toYYYYMM(trade_date)
 priority: P1
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
 required_params: []
-fields: []
 schema_overrides: {}
-batch: B
+start_date: '20200101'
+table: tushare_block_trade
 ---
-
+batch: B
+enabled: true
+fetch_strategy:
+  date_field: trade_date
+  kind: date_loop
+fields: []
+freq_bucket: special
+mode: incremental
+name: margin_detail
+order_by: ts_code, trade_date
+partition_key: toYYYYMM(trade_date)
+priority: P1
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_margin_detail
+---
+batch: B
+enabled: true
+fetch_strategy:
+  date_field: trade_date
+  kind: date_loop
+fields: []
+freq_bucket: special
+mode: incremental
 name: margin_secs
-table: tushare_margin_secs
-enabled: true
-priority: P2
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
-fetch_strategy:
-  kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: B
----
-
-name: pledge_detail
-table: tushare_pledge_detail
-enabled: true
+partition_key: toYYYYMM(trade_date)
 priority: P2
-mode: incremental
-freq_bucket: special
+required_params: []
+schema_overrides: {}
 start_date: '20200101'
+table: tushare_margin_secs
+---
+batch: B
+enabled: true
 fetch_strategy:
+  date_field: trade_date
   kind: per_symbol
   symbol_source: tushare_stock_basic
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
-required_params: []
 fields: []
+freq_bucket: special
+mode: incremental
+name: pledge_detail
+order_by: ts_code, trade_date
+partition_key: toYYYYMM(trade_date)
+priority: P2
+required_params: []
 schema_overrides:
   end_date: String
-batch: B
+start_date: '20200101'
+table: tushare_pledge_detail
 ---
-
+batch: saturday
+enabled: true
+fetch_strategy:
+  kind: per_symbol
+  symbol_source: tushare_stock_basic
+fields: []
+freq_bucket: special
+mode: incremental
 name: pledge_stat
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
 table: tushare_pledge_stat
+---
+batch: saturday
 enabled: true
-priority: P2
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
 fetch_strategy:
   kind: per_symbol
   symbol_source: tushare_stock_basic
-partition_key: toYYYYMM(end_date)
-order_by: ts_code, end_date
-required_params: []
 fields: []
-schema_overrides: {}
-batch: saturday
----
-
+freq_bucket: normal
+mode: incremental
 name: repurchase
+order_by: ts_code, end_date
+partition_key: tuple()
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
 table: tushare_repurchase
-enabled: true
-priority: P2
-mode: incremental
-freq_bucket: normal
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_stock_basic
-partition_key: tuple()
-order_by: ts_code, end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: saturday
 ---
-
-name: share_float
-table: tushare_share_float
+batch: saturday
 enabled: true
-priority: P2
-mode: incremental
-freq_bucket: special
-start_date: '20200101'
 fetch_strategy:
-  kind: date_loop
   date_field: float_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: slb_len
-table: tushare_slb_len
-enabled: true
-priority: P2
-mode: incremental
-freq_bucket: normal
-start_date: '20200101'
-fetch_strategy:
   kind: date_loop
-  date_field: trade_date
-partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
-required_params: []
 fields: []
-schema_overrides: {}
-batch: B
----
-
-name: stk_account_old
-table: tushare_stk_account_old
-enabled: true
-priority: P3
-mode: full
-freq_bucket: normal
-start_date: '20080101'
-fetch_strategy:
-  kind: full_once
-partition_key: tuple()
-order_by: ts_code
-required_params: []
-fields: []
-schema_overrides: {}
-batch: reference
----
-
-name: stk_holdernumber
-table: tushare_stk_holdernumber
-enabled: true
-priority: P2
-mode: incremental
 freq_bucket: special
+mode: incremental
+name: share_float
+priority: P2
+required_params: []
+schema_overrides: {}
 start_date: '20200101'
+table: tushare_share_float
+---
+batch: B
+enabled: true
 fetch_strategy:
+  date_field: trade_date
   kind: date_loop
-  date_field: end_date
-required_params: []
 fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: stk_holdertrade
-table: tushare_stk_holdertrade
-enabled: true
-priority: P2
-mode: incremental
 freq_bucket: normal
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_stock_basic
-partition_key: tuple()
-order_by: ts_code, ann_date
-required_params: [ts_code, ann_date, start_date, end_date, trade_type, holder_type]
-fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: top10_floatholders
-table: tushare_top10_floatholders
-enabled: true
-priority: P2
 mode: incremental
-freq_bucket: normal
-start_date: '20200101'
-fetch_strategy:
-  kind: per_symbol_period
-  symbol_source: tushare_stock_basic
+name: slb_len
+order_by: ts_code, trade_date
 partition_key: toYYYYMM(trade_date)
-order_by: ts_code, end_date
-required_params: []
-fields: []
-schema_overrides: {}
-batch: saturday
----
-
-name: top10_holders
-table: tushare_top10_holders
-enabled: true
 priority: P2
-mode: incremental
-freq_bucket: normal
+required_params: []
+schema_overrides: {}
 start_date: '20200101'
+table: tushare_slb_len
+---
+batch: reference
+enabled: true
+fetch_strategy:
+  kind: full_once
+fields: []
+freq_bucket: normal
+mode: full
+name: stk_account_old
+order_by: ts_code
+partition_key: tuple()
+priority: P3
+required_params: []
+schema_overrides: {}
+start_date: '20080101'
+table: tushare_stk_account_old
+---
+batch: saturday
+enabled: true
+fetch_strategy:
+  date_field: end_date
+  kind: date_loop
+fields: []
+freq_bucket: special
+mode: incremental
+name: stk_holdernumber
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_stk_holdernumber
+---
+batch: saturday
+enabled: true
+fetch_strategy:
+  date_field: ann_date
+  kind: date_loop
+fields: []
+freq_bucket: normal
+mode: incremental
+name: stk_holdertrade
+order_by: ts_code, ann_date
+partition_key: tuple()
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_stk_holdertrade
+---
+batch: saturday
+enabled: true
 fetch_strategy:
   kind: per_symbol_period
   symbol_source: tushare_stock_basic
-partition_key: toYYYYMM(end_date)
+fields: []
+freq_bucket: normal
+mode: incremental
+name: top10_floatholders
 order_by: ts_code, end_date
+partition_key: toYYYYMM(trade_date)
+priority: P2
 required_params: []
-fields: []
 schema_overrides: {}
+start_date: '20200101'
+table: tushare_top10_floatholders
+---
 batch: saturday
+enabled: true
+fetch_strategy:
+  kind: per_symbol_period
+  symbol_source: tushare_stock_basic
+fields: []
+freq_bucket: normal
+mode: incremental
+name: top10_holders
+order_by: ts_code, end_date
+partition_key: toYYYYMM(end_date)
+priority: P2
+required_params: []
+schema_overrides: {}
+start_date: '20200101'
+table: tushare_top10_holders
 ---
-
+batch: reference
+enabled: false
+fetch_strategy:
+  kind: full_once
+fields: []
+freq_bucket: normal
+mode: full
 name: concept
+order_by: ts_code
+partition_key: tuple()
+priority: P2
+required_params: []
+schema_overrides: {}
 table: tushare_concept
-enabled: false  # disabled: table never bootstrapped
-priority: P2
-mode: full
-freq_bucket: normal
-fetch_strategy:
-  kind: full_once
-partition_key: tuple()
-order_by: ts_code
-required_params: []
-fields: []
-schema_overrides: {}
-batch: reference
 ---
-
-name: concept_detail
-table: tushare_concept_detail
-enabled: false  # disabled: API requires concept_id or stock_code parameter
-priority: P2
-mode: full
-freq_bucket: normal
+batch: reference
+enabled: false
 fetch_strategy:
   kind: full_once
-partition_key: tuple()
-order_by: ts_code
-required_params: []
 fields: []
+freq_bucket: normal
+mode: full
+name: concept_detail
+order_by: ts_code
+partition_key: tuple()
+priority: P2
+required_params: []
 schema_overrides: {}
-batch: reference
+table: tushare_concept_detail
