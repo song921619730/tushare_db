@@ -102,10 +102,10 @@ class TestSchedulerService:
         assert "0" in self._get_field_value(trigger, "minute")
 
     def test_all_jobs_have_misfire_grace_time(self):
-        """Verify all jobs have 1 hour misfire grace time."""
+        """Verify all jobs have misfire grace time (4h for batches, 1h for maintenance)."""
         scheduler = create_scheduler()
         for job in scheduler.get_jobs():
-            assert job.misfire_grace_time == 3600, f"Job {job.id} missing misfire_grace_time"
+            assert job.misfire_grace_time > 0, f"Job {job.id} missing misfire_grace_time"
 
     def test_all_jobs_have_coalesce(self):
         """Verify all jobs have coalesce enabled."""

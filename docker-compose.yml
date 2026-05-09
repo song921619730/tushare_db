@@ -29,22 +29,7 @@ services:
       timeout: 3s
       retries: 5
 
-  pipeline-scheduler:
-    build:
-      context: .
-      dockerfile: docker/pipeline/Dockerfile
-    restart: unless-stopped
-    depends_on:
-      clickhouse: {condition: service_healthy}
-    volumes:
-      - ./config:/app/config:ro
-      - ./data/logs:/app/data/logs
-      - ./data/samples:/app/data/samples
-    environment:
-      TUSHARE_TOKEN: ${TUSHARE_TOKEN}
-      CH_HOST: clickhouse
-      CH_PIPELINE_PASSWORD: ${CH_PIPELINE_PASSWORD}
-    command: ["tushare-db", "scheduler-run"]
+  # pipeline-scheduler removed — replaced by system cron + daily-incremental.sh
 
   pipeline-mcp:
     build:
@@ -92,6 +77,23 @@ services:
     ports: ["8888:8888"]
     depends_on:
       clickhouse: {condition: service_healthy}
+    environment:
+      # jin10-mcp-proxy runs in a separate compose stack on the host's
+      # published port 27891. Reach it via the host gateway so we don't
+      # depend on the two stacks sharing a docker network.
+      JIN10_PROXY_HOST: host.docker.internal
+      JIN10_PROXY_PORT: "27891"
+    extra_hosts:
+      # Make `host.docker.internal` resolve to the host gateway on Linux too
+      # (it works on Docker Desktop without this, but this keeps the compose
+      # file portable to Linux production hosts).
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 -O /dev/null http://localhost:8888/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 volumes:
   clickhouse_data:
