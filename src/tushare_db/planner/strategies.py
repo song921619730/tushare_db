@@ -81,17 +81,26 @@ def generate_date_loop_units(
     bucket: str,
     dates: list[str],
     table: str = "",
+    date_field: str = "trade_date",
 ) -> list[WorkUnit]:
-    """Generate work units for each trading date."""
+    """Generate work units for each trading date.
+
+    Args:
+        date_field: The API parameter name for the date (e.g., 'trade_date',
+            'ann_date', 'end_date'). Defaults to 'trade_date' for backward
+            compatibility.
+    """
     units = []
     for trade_date in dates:
+        # scope_key always uses 'trade_date' keyword for consistency,
+        # but the actual API call uses the specified date_field.
         scope_key = build_scope_key(interface, "date_loop", trade_date=trade_date)
         units.append(
             WorkUnit(
                 interface=interface,
                 table=table,
                 scope_key=scope_key,
-                params={"trade_date": trade_date},
+                params={date_field: trade_date},
                 bucket=bucket,
             )
         )
@@ -162,24 +171,34 @@ def generate_per_symbol_units(
     start_date: str = "20200101",
     end_date: str | None = None,
     table: str = "",
+    date_field: str | None = None,
 ) -> list[WorkUnit]:
-    """Generate work units for per-symbol fetch (one call per stock, returns all data).
+    """Generate work units for per-symbol fetch.
 
-    Used for APIs that don't support period/date filtering — each unit fetches
-    the entire history for one symbol.
+    When called with a single date (start_date == end_date, the incremental
+    case) AND date_field is specified, the target date is included in params
+    so the API fetch is scoped to one trading day. Otherwise the unit fetches
+    the entire history for each symbol.
     """
     if end_date is None:
         end_date = datetime.now().strftime("%Y%m%d")
 
+    # Only scope by date when fetching a single day (incremental mode)
+    single_date = (start_date == end_date) and date_field
+
     units = []
     for symbol in symbols:
+        params: dict = {"ts_code": symbol}
+        if single_date:
+            params[date_field] = end_date
+
         scope_key = build_scope_key(interface, "per_symbol", ts_code=symbol)
         units.append(
             WorkUnit(
                 interface=interface,
                 table=table,
                 scope_key=scope_key,
-                params={"ts_code": symbol},
+                params=params,
                 bucket=bucket,
             )
         )

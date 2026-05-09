@@ -71,6 +71,18 @@ class TestGenerateUnitsScopeKeys:
         assert units[2].scope_key == "daily:20240315"
         assert units[0].params == {"trade_date": "20240313"}
 
+    def test_date_loop_custom_date_field(self):
+        """date_loop with non-trade_date parameter (e.g., ann_date)."""
+        dates = ["20240331"]
+        units = generate_date_loop_units(
+            "stk_holdertrade", "normal", dates,
+            table="tushare.stk_holdertrade",
+            date_field="ann_date",
+        )
+        assert len(units) == 1
+        assert units[0].scope_key == "stk_holdertrade:20240331"
+        assert units[0].params == {"ann_date": "20240331"}
+
     def test_period_loop_generates_units_per_quarter(self):
         units = generate_period_loop_units(
             "income", "normal", table="tushare.income",

@@ -109,7 +109,10 @@ def plan_units(
         if strategy == "offset_paging":
             units = generate_offset_paging_units(spec.name, bucket, dates, table=table)
         else:
-            units = generate_date_loop_units(spec.name, bucket, dates, table=table)
+            units = generate_date_loop_units(
+                spec.name, bucket, dates, table=table,
+                date_field=spec.fetch_strategy.date_field or "trade_date",
+            )
         return _merge_static_params(units, spec.fetch_strategy.static_params)
 
     if strategy == "period_loop":
@@ -130,14 +133,13 @@ def plan_units(
 
     if strategy == "per_symbol":
         symbol_table = spec.fetch_strategy.symbol_source or "tushare_stock_basic"
-        if symbol_table.startswith("tushare_"):
-            symbol_table = symbol_table
         symbols = get_symbols(client, symbol_table)
         units = generate_per_symbol_units(
             spec.name, bucket, table=table,
             symbols=symbols,
             start_date=start_date or spec.start_date or "20200101",
             end_date=end_date or _today(),
+            date_field=spec.fetch_strategy.date_field,
         )
         return _merge_static_params(units, spec.fetch_strategy.static_params)
 
