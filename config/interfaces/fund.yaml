@@ -39,11 +39,10 @@ table: tushare_fund_div
 enabled: true
 priority: P2
 mode: incremental
-freq_bucket: normal
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_fund_basic
+  kind: date_loop
   date_field: ann_date
 partition_key: toYYYYMM(ann_date)
 order_by: ts_code, ann_date
@@ -61,8 +60,7 @@ mode: incremental
 freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_stock_basic
+  kind: date_loop
   date_field: trade_date
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
@@ -98,8 +96,7 @@ mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: per_symbol
-  symbol_source: tushare_fund_basic
+  kind: date_loop
   date_field: nav_date
 partition_key: toYYYYMM(nav_date)
 order_by: ts_code, nav_date
