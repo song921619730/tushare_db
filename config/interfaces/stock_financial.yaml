@@ -103,8 +103,7 @@ schema_overrides: {}
 start_date: '20200101'
 table: tushare_fina_audit
 ---
-batch: D
-dedupe_key: end_date
+batch: saturday
 enabled: true
 fetch_strategy:
   date_field: end_date
@@ -112,7 +111,7 @@ fetch_strategy:
 fields: []
 freq_bucket: special
 mode: incremental
-name: fina_indicator
+name: fina_indicator_vip
 order_by: ts_code, end_date
 partition_key: toYYYYMM(end_date)
 priority: P0
