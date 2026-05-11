@@ -7,7 +7,7 @@ update only fetches the most recent trading day (T-1) for each interface.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import clickhouse_connect.driver
 import structlog
@@ -15,7 +15,8 @@ import structlog
 from tushare_db.config.loader import load_interface_specs
 from tushare_db.config.models import InterfaceSpec
 from tushare_db.core.tushare_client import TushareClient
-from tushare_db.planner.planner import get_trade_dates, plan_units
+from tushare_db.meta.sync_runs import create_run, update_run
+from tushare_db.planner.planner import plan_units
 from tushare_db.runner.executor import execute_batch
 from tushare_db.runner.verify_hook import make_verify_hook
 
@@ -43,26 +44,12 @@ def get_latest_trade_date(
 def get_target_date(
     ch_client: clickhouse_connect.driver.Client,
 ) -> str | None:
-    """Get T-1 trading date (yesterday's trading day).
+    """Get the most recent trading date <= today.
 
-    Returns None if yesterday is not a trading day or trade_cal is empty.
+    When run after market close (17:00+), this returns today's date
+    so we fetch the current day's closing data.
     """
-    latest = get_latest_trade_date(ch_client)
-    if not latest:
-        return None
-
-    # Find the trading date before the latest one (T-1)
-    result = ch_client.query(
-        "SELECT cal_date FROM _meta.trade_cal "
-        f"WHERE is_open = 1 AND cal_date < '{latest}' "
-        "ORDER BY cal_date DESC LIMIT 1"
-    )
-    if not result.result_rows:
-        return None
-    dt = result.result_rows[0][0]
-    if hasattr(dt, "strftime"):
-        return dt.strftime("%Y%m%d")
-    return str(dt).replace("-", "")[:8]
+    return get_latest_trade_date(ch_client)
 
 
 def filter_by_batch(specs: list[InterfaceSpec], batch: str) -> list[InterfaceSpec]:
@@ -128,6 +115,30 @@ def run_incremental(
         )
         total_done += done_count
         total_failed += failed_count
+
+    # Write sync_runs audit record
+    if total_units > 0:
+        if total_failed == 0:
+            status = "done"
+        elif total_done > 0:
+            status = "partial"
+        else:
+            status = "failed"
+        create_run(
+            ch_client,
+            interface="",
+            batch=batch or "all",
+            scope="incremental",
+            units_total=total_units,
+            run_id=run_id,
+        )
+        update_run(
+            ch_client,
+            run_id,
+            units_done=total_done,
+            units_failed=total_failed,
+            status=status,
+        )
 
     result = {
         "total": total_units,

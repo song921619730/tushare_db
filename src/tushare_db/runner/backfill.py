@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Iterable
+from collections.abc import Iterable
 
 import clickhouse_connect.driver
 import structlog
@@ -11,6 +11,7 @@ import structlog
 from tushare_db.config.loader import load_interface_specs
 from tushare_db.config.models import InterfaceSpec
 from tushare_db.core.tushare_client import TushareClient
+from tushare_db.meta.sync_runs import create_run, update_run
 from tushare_db.planner.planner import plan_units
 from tushare_db.runner.executor import execute_batch
 from tushare_db.runner.worker import VerifyHook
@@ -91,6 +92,30 @@ def run_backfill(
         total_units += len(units)
         total_done += done_count
         total_failed += failed_count
+
+    # Write sync_runs audit record
+    if total_units > 0:
+        if total_failed == 0:
+            status = "done"
+        elif total_done > 0:
+            status = "partial"
+        else:
+            status = "failed"
+        create_run(
+            ch_client,
+            interface="",
+            batch="backfill",
+            scope="backfill",
+            units_total=total_units,
+            run_id=run_id,
+        )
+        update_run(
+            ch_client,
+            run_id,
+            units_done=total_done,
+            units_failed=total_failed,
+            status=status,
+        )
 
     return {
         "run_id": str(run_id),

@@ -1,0 +1,24 @@
+fina_audit backfill starting... PID=57312
+Log file: logs/fina_audit_run_20260429_222721.log
+Traceback (most recent call last):
+  File "f:\AIcoding_space\VsCode\tushare_db\scripts\run_fina_audit.py", line 34, in <module>
+    ch = clickhouse_connect.get_client(
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\__init__.py", line 138, in create_client
+    return HttpClient(interface, host, port, username, password, database, access_token,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\httpclient.py", line 184, in __init__
+    super().__init__(database=database,
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\client.py", line 229, in __init__
+    self._init_common_settings(resolved_tz_source)
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\client.py", line 234, in _init_common_settings
+    tuple(self.command('SELECT version(), timezone()', use_database=False))
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\httpclient.py", line 432, in command
+    response = self._raw_request(payload, params, headers, method, fields=fields, server_wait=False)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\httpclient.py", line 571, in _raw_request
+    self._error_handler(response)
+  File "f:\AIcoding_space\VsCode\tushare_db\.venv\Lib\site-packages\clickhouse_connect\driver\httpclient.py", line 488, in _error_handler
+    raise OperationalError(err_str) if retried else DatabaseError(err_str) from None
+clickhouse_connect.driver.exceptions.DatabaseError: Received ClickHouse exception, code: 516, server response: Code: 516. DB::Exception: pipeline: Authentication failed: password is incorrect, or there is no user with such name. (AUTHENTICATION_FAILED) (version 24.8.14.39 (official build)) (for url http://localhost:8123)

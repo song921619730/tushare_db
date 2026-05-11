@@ -1,0 +1,11 @@
+Resume fina_audit starting... PID=58420
+Log file: logs/resume_fina_audit_20260429_192707.log
+usage: resume_fina_audit.py [-h] [--dry-run] [--start START] [--end END]
+
+Resume fina_audit backfill
+
+options:
+  -h, --help     show this help message and exit
+  --dry-run      Plan units but do not execute
+  --start START  Override start date (YYYYMMDD)
+  --end END      Override end date (YYYYMMDD)

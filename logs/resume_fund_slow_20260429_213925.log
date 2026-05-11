@@ -1,0 +1,16 @@
+Resume fund_slow starting... PID=48420
+Log file: logs/resume_fund_slow_20260429_213925.log
+
+============================================================
+Interface: fund_sales_ratio
+  Strategy:  date_loop
+  Bucket:    special
+  Start:     20200101
+  No pending units found (will plan fresh)
+  Planning work units...
+  Planned 1531 work units
+  DRY RUN: showing sample units
+    fund_sales_ratio:20200102 params={'trade_date': '20200102'}
+    fund_sales_ratio:20200103 params={'trade_date': '20200103'}
+    fund_sales_ratio:20200106 params={'trade_date': '20200106'}
+    ... and 1528 more

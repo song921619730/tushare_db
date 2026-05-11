@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
 import clickhouse_connect.driver
 
@@ -22,13 +22,15 @@ def create_run(
     batch: str,
     scope: str,
     units_total: int,
+    run_id: uuid.UUID | None = None,
 ) -> uuid.UUID:
     """Create a new sync run entry.
 
     Returns:
         run_id UUID.
     """
-    run_id = uuid.uuid4()
+    if run_id is None:
+        run_id = uuid.uuid4()
     now = _now_shanghai()
 
     client.insert(

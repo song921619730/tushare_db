@@ -1,0 +1,10 @@
+Resume fina_audit starting... PID=29596
+Log file: logs/resume_fina_audit_20260429_222241.log
+Interface: fina_audit
+Strategy:  per_symbol_period
+Bucket:    special
+Start:     20200101
+Pending units: 25 (failed:25)
+Planning work units...
+Planned 137775 work units
+No matching work units to execute

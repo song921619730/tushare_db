@@ -1,0 +1,10 @@
+fina_audit backfill starting... PID=61888
+Log file: logs/fina_audit_run_20260429_230135.log
+CH_HOST: localhost
+CH_PIPELINE_PASSWORD: NOT SET...
+Traceback (most recent call last):
+  File "f:\AIcoding_space\VsCode\tushare_db\scripts\run_fina_audit.py", line 44, in <module>
+    ts = TushareClient(token=os.environ["TUSHARE_TOKEN"], limiter=limiter)
+                             ~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 714, in __getitem__
+KeyError: 'TUSHARE_TOKEN'

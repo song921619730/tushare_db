@@ -65,7 +65,7 @@ fetch_strategy:
   symbol_source: tushare_stock_basic
   date_field: trade_date
 partition_key: toYYYYMM(trade_date)
-order_by: ts_code, trade_date
+order_by: ts_code, trade_date, price
 required_params: []
 fields: []
 schema_overrides: {}
@@ -76,7 +76,7 @@ table: tushare_cyq_perf
 enabled: true
 priority: P1
 mode: incremental
-freq_bucket: normal
+freq_bucket: special
 start_date: '20200101'
 fetch_strategy:
   kind: per_symbol

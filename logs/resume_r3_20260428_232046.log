@@ -1,0 +1,49 @@
+Resume R3: macro interfaces starting... PID=15296
+Macro interfaces: ['cn_cpi', 'cn_m', 'cn_ppi', 'hibor', 'libor']
+  cn_cpi: fetch_strategy=full_once
+  cn_m: fetch_strategy=full_once
+  cn_ppi: fetch_strategy=full_once
+  hibor: fetch_strategy=full_once
+  libor: fetch_strategy=full_once
+  cn_cpi: 1 units
+2026-04-28 23:20:46 [info     ] Executing work unit            interface=cn_cpi run_id=0f8ad076-b32e-410a-bdb6-4cd268b6fa88 scope_key=cn_cpi:full
+2026-04-28 23:20:50 [debug    ] api_call_success               duration_ms=2562 interface=cn_cpi rows=507 status=200
+2026-04-28 23:20:50 [debug    ] insert_complete                duration_ms=109 rows=507 table=tushare.tushare_cn_cpi
+2026-04-28 23:20:50 [info     ] Unit complete                  interface=cn_cpi rows=507 scope_key=cn_cpi:full
+2026-04-28 23:20:50 [info     ] Batch progress                 done=1 failed=0 rows=507 total=1
+2026-04-28 23:20:50 [info     ] Batch complete                 done=1 failed=0 rows=507 total=1
+    -> done=1, failed=0
+  cn_m: 1 units
+2026-04-28 23:20:50 [info     ] Executing work unit            interface=cn_m run_id=0f8ad076-b32e-410a-bdb6-4cd268b6fa88 scope_key=cn_m:full
+2026-04-28 23:20:52 [debug    ] api_call_success               duration_ms=1061 interface=cn_m rows=579 status=200
+2026-04-28 23:20:52 [debug    ] insert_complete                duration_ms=297 rows=579 table=tushare.tushare_cn_m
+2026-04-28 23:20:52 [info     ] Unit complete                  interface=cn_m rows=579 scope_key=cn_m:full
+2026-04-28 23:20:52 [info     ] Batch progress                 done=1 failed=0 rows=579 total=1
+2026-04-28 23:20:52 [info     ] Batch complete                 done=1 failed=0 rows=579 total=1
+    -> done=1, failed=0
+  cn_ppi: 1 units
+2026-04-28 23:20:52 [info     ] Executing work unit            interface=cn_ppi run_id=0f8ad076-b32e-410a-bdb6-4cd268b6fa88 scope_key=cn_ppi:full
+2026-04-28 23:20:53 [debug    ] api_call_success               duration_ms=1062 interface=cn_ppi rows=414 status=200
+2026-04-28 23:20:54 [debug    ] insert_complete                duration_ms=94 rows=414 table=tushare.tushare_cn_ppi
+2026-04-28 23:20:54 [info     ] Unit complete                  interface=cn_ppi rows=414 scope_key=cn_ppi:full
+2026-04-28 23:20:54 [info     ] Batch progress                 done=1 failed=0 rows=414 total=1
+2026-04-28 23:20:54 [info     ] Batch complete                 done=1 failed=0 rows=414 total=1
+    -> done=1, failed=0
+  hibor: 1 units
+2026-04-28 23:20:54 [info     ] Executing work unit            interface=hibor run_id=0f8ad076-b32e-410a-bdb6-4cd268b6fa88 scope_key=hibor:full
+2026-04-28 23:20:55 [debug    ] api_call_success               duration_ms=1094 interface=hibor rows=3957 status=200
+2026-04-28 23:20:56 [debug    ] insert_complete                duration_ms=141 rows=3957 table=tushare.tushare_hibor
+2026-04-28 23:20:56 [info     ] Unit complete                  interface=hibor rows=3957 scope_key=hibor:full
+2026-04-28 23:20:56 [info     ] Batch progress                 done=1 failed=0 rows=3957 total=1
+2026-04-28 23:20:56 [info     ] Batch complete                 done=1 failed=0 rows=3957 total=1
+    -> done=1, failed=0
+  libor: 1 units
+2026-04-28 23:20:56 [info     ] Executing work unit            interface=libor run_id=0f8ad076-b32e-410a-bdb6-4cd268b6fa88 scope_key=libor:full
+2026-04-28 23:20:57 [debug    ] api_call_success               duration_ms=1141 interface=libor rows=4000 status=200
+2026-04-28 23:20:58 [debug    ] insert_complete                duration_ms=61 rows=4000 table=tushare.tushare_libor
+2026-04-28 23:20:58 [info     ] Unit complete                  interface=libor rows=4000 scope_key=libor:full
+2026-04-28 23:20:58 [info     ] Batch progress                 done=1 failed=0 rows=4000 total=1
+2026-04-28 23:20:58 [info     ] Batch complete                 done=1 failed=0 rows=4000 total=1
+    -> done=1, failed=0
+
+Resume R3 complete: 5 units, 5 done, 0 failed
