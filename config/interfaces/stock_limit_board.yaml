@@ -131,7 +131,7 @@ batch: C
 ---
 name: limit_cpt_list
 table: tushare_limit_cpt_list
-enabled: false  # disabled: API returns 0 rows
+enabled: true  # 8000积分可用
 priority: P2
 mode: incremental
 freq_bucket: normal
@@ -182,7 +182,7 @@ batch: C
 ---
 name: limit_step
 table: tushare_limit_step
-enabled: false  # disabled: API returns 0 rows
+enabled: true
 priority: P1
 mode: incremental
 freq_bucket: normal

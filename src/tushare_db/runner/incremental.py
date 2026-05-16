@@ -57,6 +57,9 @@ def filter_by_batch(specs: list[InterfaceSpec], batch: str) -> list[InterfaceSpe
     return [s for s in specs if s.batch == batch]
 
 
+DAILY_BATCHES = {"A", "B", "C", "D", "reference"}
+
+
 def run_incremental(
     ch_client: clickhouse_connect.driver.Client,
     tushare_client: TushareClient,
@@ -67,8 +70,9 @@ def run_incremental(
     Args:
         ch_client: ClickHouse client.
         tushare_client: Tushare API client.
-        batch: Optional batch filter (A|B|C|D|saturday|reference).
+        batch: Optional batch filter (A|B|C|D|saturday|reference|daily).
                If None, runs all enabled interfaces.
+               Pass "daily" to run A+B+C+D sequentially.
 
     Returns:
         Summary dict with total/done/failed counts.
@@ -83,7 +87,9 @@ def run_incremental(
     specs = load_interface_specs()
     specs = [s for s in specs if s.enabled]
 
-    if batch:
+    if batch == "daily":
+        specs = [s for s in specs if s.batch in DAILY_BATCHES]
+    elif batch:
         specs = filter_by_batch(specs, batch)
 
     if not specs:

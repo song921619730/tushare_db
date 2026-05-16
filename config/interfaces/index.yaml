@@ -109,9 +109,8 @@ mode: incremental
 freq_bucket: normal
 start_date: '20200101'
 fetch_strategy:
-  kind: per_symbol
+  kind: date_loop
   date_field: trade_date
-  symbol_source: tushare_index_basic
 partition_key: toYYYYMM(trade_date)
 order_by: ts_code, trade_date
 required_params: []
@@ -140,7 +139,7 @@ batch: A
 
 name: index_global
 table: tushare_index_global
-enabled: false  # disabled: Tushare rate limit 200/min, 100% failure
+enabled: true  # enabled for SPX data
 priority: P2
 mode: incremental
 freq_bucket: normal

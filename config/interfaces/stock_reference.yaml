@@ -219,7 +219,7 @@ start_date: '20200101'
 table: tushare_top10_holders
 ---
 batch: reference
-enabled: false
+enabled: true  # 5000积分可用
 fetch_strategy:
   kind: full_once
 fields: []
@@ -234,7 +234,7 @@ schema_overrides: {}
 table: tushare_concept
 ---
 batch: reference
-enabled: false
+enabled: true  # 5000积分可用
 fetch_strategy:
   kind: full_once
 fields: []

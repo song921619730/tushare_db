@@ -661,9 +661,16 @@ def _pending_summary(pending: list[dict]) -> str:
 
 @cli.command()
 @click.option("--batch", default=None, help="A|B|C|D|saturday|reference")
+@click.option("--daily", is_flag=True, help="Run all daily batches (A+B+C+D) sequentially")
 @click.option("--incremental", is_flag=True, help="Incremental update for all enabled interfaces")
-def update(batch: str | None, incremental: bool) -> None:
-    """[PR4] Incremental update (T-1)."""
+def update(batch: str | None, daily: bool, incremental: bool) -> None:
+    """[PR4] Incremental update (T-1).
+
+    Modes:
+      --batch=A          Run a single batch
+      --daily            Run A+B+C+D sequentially (Mon-Fri daily update)
+      (no flag)          Run all enabled interfaces
+    """
     from tushare_db.runner.incremental import run_incremental
 
     lock = ConcurrencyLock()
@@ -673,9 +680,12 @@ def update(batch: str | None, incremental: bool) -> None:
     tushare_client = _get_tushare_client()
 
     try:
-        result = run_incremental(ch_client, tushare_client, batch=batch)
-        if result.get("skipped"):
-            click.echo(f"Skipped: {result.get('reason', 'unknown')}")
+        if daily:
+            result = run_incremental(ch_client, tushare_client, batch="daily")
+        else:
+            result = run_incremental(ch_client, tushare_client, batch=batch)
+        if result.get("reason"):
+            click.echo(f"Skipped: {result.get('reason')}")
             return
 
         click.echo(

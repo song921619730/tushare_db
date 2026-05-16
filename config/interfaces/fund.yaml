@@ -114,7 +114,7 @@ start_date: '20200101'
 table: tushare_fund_portfolio
 ---
 batch: D
-enabled: false
+enabled: true
 fetch_strategy:
   date_field: trade_date
   kind: date_loop
@@ -131,7 +131,7 @@ start_date: '20200101'
 table: tushare_fund_sales_ratio
 ---
 batch: D
-enabled: false
+enabled: true
 fetch_strategy:
   date_field: trade_date
   kind: date_loop

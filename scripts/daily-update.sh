@@ -1,19 +1,19 @@
 #!/bin/bash
-# daily-incremental.sh — 每日 T-1 增量更新，持续补漏直到当日全部完成
+# daily-update.sh — 单脚本完成所有日更数据拉取（A+B+C+D）
 #
-# 逻辑：
-#   1. 先 resume 所有遗留 failed/partial
-#   2. 分批次跑 update：A → B → C → D（跳过 saturday/reference）
-#   3. 每批完成后 resume 补漏，持续循环直到无 pending
-#   4. 每轮间隔 15 分钟，让限流窗口重置
+# 流程：
+#   1. resume 所有遗留 failed/partial
+#   2. tushare-db update --daily（一次性跑完 A/B/C/D）
+#   3. resume 补漏
+#   4. 循环直到无 pending 或超时
 #
 # 用法：cron 调用
-#   30 19 * * 1-5  /path/to/daily-incremental.sh >> /var/log/tushare-daily.log 2>&1
+#   30 19 * * 1-5  /path/to/daily-update.sh >> /var/log/tushare-daily.log 2>&1
 
 set -euo pipefail
 
 COMPOSE_DIR="/mnt/f/AIcoding_space/VsCode/tushare_db"
-LOG_PREFIX="[daily-incremental]"
+LOG_PREFIX="[daily-update]"
 MAX_DURATION=14400  # 4 小时安全超时（秒），19:30 开始最晚到 23:30
 ROUND_SLEEP=900     # 每轮间隔 15 分钟，让限流窗口充分重置
 
@@ -55,19 +55,12 @@ while true; do
     log "--- 第 ${round} 轮 (已耗时 $((ELAPSED/60))min) ---"
 
     if [ "$round" -eq 1 ]; then
-        # 第 1 轮：先 resume 遗留失败
+        # 第 1 轮：先 resume 遗留失败，再跑日更
         log "步骤 1/2: resume 遗留任务..."
         run_cmd tushare-db resume 2>&1 | tail -5
 
-        # 分批次跑增量更新（A→B→C→D），跳过 saturday/reference
-        log "步骤 2/2: 分批次增量更新 T-1..."
-        for batch in A B C D; do
-            log "  → Batch ${batch}..."
-            run_cmd tushare-db update --incremental --batch="$batch" 2>&1 | tail -5
-
-            # 批次间短暂等待
-            sleep 30
-        done
+        log "步骤 2/2: 跑日更 (A+B+C+D)..."
+        run_cmd tushare-db update --daily 2>&1 | tail -10
     else
         # 后续轮：只 resume 补漏
         log "运行 resume 补漏..."

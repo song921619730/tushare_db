@@ -208,7 +208,7 @@ batch: C
 ---
 name: stk_surv
 table: tushare_stk_surv
-enabled: false  # disabled: API returns 0 rows for all dates
+enabled: true  # 5000积分可用
 priority: P2
 mode: incremental
 freq_bucket: normal
